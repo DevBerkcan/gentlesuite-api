@@ -27,8 +27,8 @@ public class CurrentUserService : ICurrentUserService
 // === Customer ===
 public class CustomerServiceImpl : ICustomerService
 {
-    private readonly AppDbContext _db; private readonly IMapper _m; private readonly IOnboardingService _ob; private readonly IEmailService _em; private readonly IActivityLogService _act; private readonly INumberSequenceService _seq;
-    public CustomerServiceImpl(AppDbContext db, IMapper m, IOnboardingService ob, IEmailService em, IActivityLogService act, INumberSequenceService seq) { _db = db; _m = m; _ob = ob; _em = em; _act = act; _seq = seq; }
+    private readonly AppDbContext _db; private readonly IMapper _m; private readonly IOnboardingService _ob; private readonly IEmailService _em; private readonly IActivityLogService _act; private readonly INumberSequenceService _seq; private readonly string _frontendBaseUrl;
+    public CustomerServiceImpl(AppDbContext db, IMapper m, IOnboardingService ob, IEmailService em, IActivityLogService act, INumberSequenceService seq, Microsoft.Extensions.Configuration.IConfiguration config) { _db = db; _m = m; _ob = ob; _em = em; _act = act; _seq = seq; _frontendBaseUrl = config["FrontendBaseUrl"] ?? "http://localhost:3000"; }
 
     public async Task<PagedResult<CustomerListDto>> GetCustomersAsync(PaginationParams p, CustomerStatus? status, Guid? serviceId, CancellationToken ct)
     {
@@ -192,6 +192,45 @@ public class CustomerServiceImpl : ICustomerService
 
         await _db.SaveChangesAsync(ct);
         await _act.LogAsync(c.Id, "Customer", c.Id, "GdprErased", $"DSGVO-Loeschung ausgefuehrt. Grund: {req.Reason}", ct: ct);
+    }
+
+    public async Task<CustomerDetailDto> CreateQuickAsync(CreateCustomerQuickRequest req, CancellationToken ct)
+    {
+        var token = Guid.NewGuid();
+        var companyName = !string.IsNullOrWhiteSpace(req.CompanyName) ? req.CompanyName : req.Email;
+        var year = DateTime.UtcNow.Year;
+        var number = await _seq.NextNumberAsync("Customer", year, "KD", 5, ct);
+        var cust = new Customer { CompanyName = companyName, Status = CustomerStatus.Lead, CustomerNumber = number, OnboardingToken = token };
+        cust.Contacts.Add(new Contact { FirstName = "Unbekannt", LastName = "", Email = req.Email, IsPrimary = true });
+        _db.Customers.Add(cust);
+        await _db.SaveChangesAsync(ct);
+        await _act.LogAsync(cust.Id, "Customer", cust.Id, "Created", $"Kunde per Schnellerfassung angelegt: {req.Email}", ct: ct);
+        var intakeUrl = $"{_frontendBaseUrl}/intake/{token}";
+        try { await _em.SendTemplatedEmailAsync(req.Email, "customer-intake", new() { ["IntakeUrl"] = intakeUrl, ["CompanyName"] = companyName }, cust.Id, ct: ct); } catch { }
+        return (await GetByIdAsync(cust.Id, ct))!;
+    }
+
+    public async Task<CustomerIntakeInfoDto?> GetIntakeInfoAsync(Guid token, CancellationToken ct)
+    {
+        var cust = await _db.Customers.IgnoreQueryFilters().Include(c => c.Contacts).FirstOrDefaultAsync(c => c.OnboardingToken == token, ct);
+        if (cust == null) return null;
+        var email = cust.Contacts.FirstOrDefault(c => c.IsPrimary)?.Email ?? cust.Contacts.FirstOrDefault()?.Email ?? "";
+        return new CustomerIntakeInfoDto(cust.CompanyName, email, cust.OnboardingIntakeDone);
+    }
+
+    public async Task CompleteIntakeAsync(Guid token, CustomerIntakeSubmitRequest req, CancellationToken ct)
+    {
+        var cust = await _db.Customers.IgnoreQueryFilters().Include(c => c.Contacts).Include(c => c.Locations).FirstOrDefaultAsync(c => c.OnboardingToken == token, ct) ?? throw new KeyNotFoundException("Ungültiger Intake-Link.");
+        if (cust.OnboardingIntakeDone) throw new InvalidOperationException("Dieses Formular wurde bereits ausgefüllt.");
+        cust.CompanyName = req.CompanyName;
+        var contact = cust.Contacts.FirstOrDefault(c => c.IsPrimary) ?? cust.Contacts.FirstOrDefault();
+        if (contact != null) { contact.FirstName = req.FirstName; contact.LastName = req.LastName; if (!string.IsNullOrWhiteSpace(req.Phone)) contact.Phone = req.Phone; }
+        if (!string.IsNullOrWhiteSpace(req.Street) && !string.IsNullOrWhiteSpace(req.City))
+            cust.Locations.Add(new Location { Label = "Hauptadresse", Street = req.Street ?? "", City = req.City ?? "", ZipCode = req.ZipCode ?? "", Country = req.Country ?? "Deutschland", IsPrimary = true });
+        cust.OnboardingIntakeDone = true;
+        cust.OnboardingToken = null;
+        await _db.SaveChangesAsync(ct);
+        await _act.LogAsync(cust.Id, "Customer", cust.Id, "IntakeCompleted", $"Kunde hat Erstinformations-Formular ausgefüllt", ct: ct);
     }
 
     private static string Normalize(string? value) => (value ?? string.Empty).Trim().ToLowerInvariant();

@@ -19,6 +19,9 @@ public interface ICustomerService
     Task<DuplicateCheckResultDto> CheckDuplicateAsync(DuplicateCheckRequest req, CancellationToken ct = default);
     Task<GdprExportDto> ExportGdprAsync(Guid customerId, CancellationToken ct = default);
     Task EraseGdprAsync(Guid customerId, GdprEraseRequest req, CancellationToken ct = default);
+    Task<CustomerDetailDto> CreateQuickAsync(CreateCustomerQuickRequest req, CancellationToken ct = default);
+    Task<CustomerIntakeInfoDto?> GetIntakeInfoAsync(Guid token, CancellationToken ct = default);
+    Task CompleteIntakeAsync(Guid token, CustomerIntakeSubmitRequest req, CancellationToken ct = default);
 }
 
 public interface ICustomerNoteService

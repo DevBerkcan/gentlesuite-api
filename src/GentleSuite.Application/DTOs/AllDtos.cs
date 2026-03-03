@@ -32,6 +32,9 @@ public class CustomerDetailDto
     public List<Guid> DesiredServiceIds { get; set; } = new();
 }
 public record CreateCustomerRequest(string CompanyName, string? Industry, string? Website, string? TaxId, string? VatId, CreateContactRequest PrimaryContact, CreateLocationRequest? PrimaryLocation, List<Guid>? DesiredServiceIds);
+public record CreateCustomerQuickRequest(string Email, string? CompanyName);
+public record CustomerIntakeSubmitRequest(string CompanyName, string FirstName, string LastName, string? Phone, string? Street, string? City, string? ZipCode, string? Country);
+public record CustomerIntakeInfoDto(string? CompanyName, string Email, bool AlreadyCompleted);
 public record UpdateCustomerRequest(string CompanyName, string? Industry, string? Website, string? TaxId, string? VatId, CustomerStatus Status);
 public record DuplicateCheckRequest(string CompanyName, string? Email, string? Phone, Guid? ExcludeCustomerId = null);
 public record DuplicateHitDto(Guid CustomerId, string CompanyName, string? ContactName, string? Email, string? Phone, string MatchType);

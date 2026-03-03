@@ -44,6 +44,7 @@ public class CustomersController(ICustomerService svc) : ControllerBase
     [HttpPost("check-duplicate")] public async Task<ActionResult<DuplicateCheckResultDto>> CheckDuplicate(DuplicateCheckRequest req) => Ok(await svc.CheckDuplicateAsync(req));
     [HttpGet("{id}")] public async Task<ActionResult<CustomerDetailDto>> Get(Guid id) { var r = await svc.GetByIdAsync(id); return r == null ? NotFound() : Ok(r); }
     [HttpPost] public async Task<ActionResult<CustomerDetailDto>> Create(CreateCustomerRequest req) => Ok(await svc.CreateAsync(req));
+    [HttpPost("quick")] public async Task<ActionResult<CustomerDetailDto>> CreateQuick(CreateCustomerQuickRequest req) => Ok(await svc.CreateQuickAsync(req));
     [HttpPut("{id}")] public async Task<ActionResult<CustomerDetailDto>> Update(Guid id, UpdateCustomerRequest req) => Ok(await svc.UpdateAsync(id, req));
     [HttpPut("{id}/reminder-stop")]
     public async Task<IActionResult> UpdateReminderStop(Guid id, UpdateReminderStopRequest req, [FromServices] AppDbContext db)
@@ -487,6 +488,25 @@ public class CrmActivitiesController(ICrmActivityService svc) : ControllerBase
     [HttpDelete("{id}")] public async Task<IActionResult> Delete(Guid id) { await svc.DeleteAsync(id); return NoContent(); }
 }
 
+
+// === Customer Intake (öffentlich, kein Auth) ===
+[ApiController, Route("api/intake")]
+public class CustomerIntakeController(ICustomerService svc) : ControllerBase
+{
+    [HttpGet("{token:guid}")]
+    public async Task<ActionResult<CustomerIntakeInfoDto>> GetInfo(Guid token)
+    {
+        var info = await svc.GetIntakeInfoAsync(token);
+        return info == null ? NotFound() : Ok(info);
+    }
+
+    [HttpPost("{token:guid}")]
+    public async Task<IActionResult> Submit(Guid token, CustomerIntakeSubmitRequest req)
+    {
+        await svc.CompleteIntakeAsync(token, req);
+        return NoContent();
+    }
+}
 
 [ApiController, Route("api/[controller]"), AllowAnonymous]
 public class SetupController(AppDbContext db) : ControllerBase
