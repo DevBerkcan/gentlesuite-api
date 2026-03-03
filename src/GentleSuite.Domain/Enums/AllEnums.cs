@@ -31,6 +31,7 @@ public enum EmailStatus { Queued, Sending, Sent, Failed }
 // === Subscriptions ===
 public enum SubscriptionStatus { Active, Paused, Cancelled, Expired }
 public enum BillingCycle { Monthly, Quarterly, Yearly }
+public enum SubscriptionPlanCategory { Allgemein, DomainHosting, Wartungsvertrag, SLA, Software, Support, Sonstiges }
 
 // === Reminders ===
 public enum ReminderLevel { Level1, Level2, Level3 }

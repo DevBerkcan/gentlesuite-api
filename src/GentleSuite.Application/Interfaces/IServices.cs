@@ -134,6 +134,9 @@ public interface IProjectService
 public interface ISubscriptionService
 {
     Task<List<SubscriptionPlanDto>> GetPlansAsync(CancellationToken ct = default);
+    Task<SubscriptionPlanDto> CreatePlanAsync(CreatePlanRequest req, CancellationToken ct = default);
+    Task<SubscriptionPlanDto> UpdatePlanAsync(Guid id, UpdatePlanRequest req, CancellationToken ct = default);
+    Task DeletePlanAsync(Guid id, CancellationToken ct = default);
     Task<List<CustomerSubscriptionDto>> GetAllAsync(CancellationToken ct = default);
     Task<List<CustomerSubscriptionDto>> GetCustomerSubscriptionsAsync(Guid customerId, CancellationToken ct = default);
     Task<CustomerSubscriptionDto> CreateAsync(CreateSubscriptionRequest req, CancellationToken ct = default);

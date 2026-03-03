@@ -1,4 +1,6 @@
 using GentleSuite.Application.DTOs;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using GentleSuite.Application.Interfaces;
 using GentleSuite.API.Hubs;
 using GentleSuite.Domain.Enums;
@@ -241,6 +243,9 @@ public class SubscriptionsController(ISubscriptionService svc) : ControllerBase
 {
     [HttpGet] public async Task<ActionResult<List<CustomerSubscriptionDto>>> All() => Ok(await svc.GetAllAsync());
     [HttpGet("plans")] public async Task<ActionResult<List<SubscriptionPlanDto>>> Plans() => Ok(await svc.GetPlansAsync());
+    [HttpPost("plans")] public async Task<ActionResult<SubscriptionPlanDto>> CreatePlan(CreatePlanRequest req) => Ok(await svc.CreatePlanAsync(req));
+    [HttpPut("plans/{id}")] public async Task<ActionResult<SubscriptionPlanDto>> UpdatePlan(Guid id, UpdatePlanRequest req) => Ok(await svc.UpdatePlanAsync(id, req));
+    [HttpDelete("plans/{id}")] public async Task<IActionResult> DeletePlan(Guid id) { await svc.DeletePlanAsync(id); return NoContent(); }
     [HttpGet("customer/{customerId}")] public async Task<ActionResult<List<CustomerSubscriptionDto>>> CustomerSubs(Guid customerId) => Ok(await svc.GetCustomerSubscriptionsAsync(customerId));
     [HttpPost] public async Task<ActionResult<CustomerSubscriptionDto>> Create(CreateSubscriptionRequest req) => Ok(await svc.CreateAsync(req));
     [HttpPut("{id}/status")] public async Task<IActionResult> UpdateStatus(Guid id, UpdateSubscriptionStatusRequest req) { await svc.UpdateStatusAsync(id, req); return NoContent(); }
@@ -480,4 +485,31 @@ public class CrmActivitiesController(ICrmActivityService svc) : ControllerBase
     [HttpPut("{id}")] public async Task<ActionResult<CrmActivityDetailDto>> Update(Guid id, UpdateCrmActivityRequest req) => Ok(await svc.UpdateAsync(id, req));
     [HttpPut("{id}/complete")] public async Task<ActionResult<CrmActivityDetailDto>> Complete(Guid id, CompleteCrmActivityRequest req) => Ok(await svc.CompleteAsync(id, req));
     [HttpDelete("{id}")] public async Task<IActionResult> Delete(Guid id) { await svc.DeleteAsync(id); return NoContent(); }
+}
+
+
+[ApiController, Route("api/[controller]"), AllowAnonymous]
+public class SetupController(AppDbContext db) : ControllerBase
+{
+    [HttpGet("init")]
+    public async Task<IActionResult> Init()
+    {
+        try
+        {
+            var conn = db.Database.GetDbConnection();
+            if (conn.State != System.Data.ConnectionState.Open) await conn.OpenAsync();
+            await using var chk = conn.CreateCommand();
+            chk.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='AspNetUsers' AND TABLE_SCHEMA='dbo'";
+            var efExists = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
+            if (efExists)
+                return Ok(new { success = true, message = "Tabellen existieren bereits — kein Handlungsbedarf." });
+            var efCreator = db.Database.GetInfrastructure().GetRequiredService<IRelationalDatabaseCreator>();
+            await efCreator.CreateTablesAsync();
+            return Ok(new { success = true, message = "EF Core Tabellen wurden erstellt." });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { success = false, error = ex.Message, inner = ex.InnerException?.Message });
+        }
+    }
 }

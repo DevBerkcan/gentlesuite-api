@@ -209,12 +209,14 @@ public record BankTransactionDto(Guid Id, DateTimeOffset TransactionDate, string
 public record MatchBankTransactionRequest(Guid? InvoiceId, Guid? ExpenseId);
 
 // === Subscription ===
-public record SubscriptionPlanDto(Guid Id, string Name, string? Description, decimal MonthlyPrice, BillingCycle BillingCycle, WorkScopeRuleDto? WorkScopeRule, SupportPolicyDto? SupportPolicy);
+public record SubscriptionPlanDto(Guid Id, string Name, string? Description, decimal MonthlyPrice, BillingCycle BillingCycle, SubscriptionPlanCategory Category, bool IsActive, WorkScopeRuleDto? WorkScopeRule, SupportPolicyDto? SupportPolicy);
 public record WorkScopeRuleDto(string? FairUseDescription, List<string> IncludedItems, List<string> ExcludedItems, int? MaxHoursPerMonth);
 public record SupportPolicyDto(string? S0ResponseTarget, string? S1ResponseTarget, string? S2ResponseTarget, string? S3ResponseTarget);
 public record CustomerSubscriptionDto(Guid Id, Guid PlanId, string PlanName, Guid CustomerId, string? CustomerName, SubscriptionStatus Status, DateTimeOffset StartDate, DateTimeOffset NextBillingDate, decimal MonthlyPrice);
 public record CreateSubscriptionRequest(Guid CustomerId, Guid PlanId, DateTimeOffset? StartDate);
 public record UpdateSubscriptionStatusRequest(SubscriptionStatus Status, string? Reason = null);
+public record CreatePlanRequest(string Name, string? Description, decimal MonthlyPrice, BillingCycle BillingCycle, SubscriptionPlanCategory Category);
+public record UpdatePlanRequest(string Name, string? Description, decimal MonthlyPrice, BillingCycle BillingCycle, SubscriptionPlanCategory Category, bool IsActive);
 
 // === Time Tracking ===
 public record TimeEntryDto(Guid Id, Guid? ProjectId, string? ProjectName, Guid? CustomerId, string? CustomerName, string Description, DateTimeOffset Date, decimal Hours, bool IsBillable, bool IsInvoiced, decimal? HourlyRate, DateTimeOffset CreatedAt);

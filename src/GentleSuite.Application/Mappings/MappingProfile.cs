@@ -95,6 +95,8 @@ public class MappingProfile : Profile
                 s.Description,
                 s.MonthlyPrice,
                 s.BillingCycle,
+                s.Category,
+                s.IsActive,
                 s.WorkScopeRule == null ? null : ctx.Mapper.Map<WorkScopeRuleDto>(s.WorkScopeRule),
                 s.SupportPolicy == null ? null : ctx.Mapper.Map<SupportPolicyDto>(s.SupportPolicy)
             ));

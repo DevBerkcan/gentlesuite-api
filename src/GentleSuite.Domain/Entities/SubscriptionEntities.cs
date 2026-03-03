@@ -8,6 +8,7 @@ public class SubscriptionPlan : BaseEntity
     public string? Description { get; set; }
     public decimal MonthlyPrice { get; set; }
     public BillingCycle BillingCycle { get; set; } = BillingCycle.Monthly;
+    public SubscriptionPlanCategory Category { get; set; } = SubscriptionPlanCategory.Allgemein;
     public bool IsActive { get; set; } = true;
     public List<SubscriptionPlanService> IncludedServices { get; set; } = new();
     public WorkScopeRule? WorkScopeRule { get; set; }

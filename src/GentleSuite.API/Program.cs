@@ -12,6 +12,8 @@ using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
@@ -114,10 +116,21 @@ var app = builder.Build();
 // Seed
 using (var scope = app.Services.CreateScope())
 {
+try
+{
     var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    // Create schema if it doesn't exist (includes AspNetRoles, AspNetUsers, etc.)
-    await db.Database.EnsureCreatedAsync();
+    // EnsureCreatedAsync() skips creation if ANY tables exist (e.g. Hangfire schema).
+    // Use targeted check: only create EF tables if AspNetUsers is missing.
+    var efCreator = db.Database.GetInfrastructure().GetRequiredService<IRelationalDatabaseCreator>();
+    var dbConn = db.Database.GetDbConnection();
+    if (dbConn.State != System.Data.ConnectionState.Open) await dbConn.OpenAsync();
+    await using (var chk = dbConn.CreateCommand())
+    {
+        chk.CommandText = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_NAME='AspNetUsers' AND TABLE_SCHEMA='dbo'";
+        var efExists = Convert.ToInt32(await chk.ExecuteScalarAsync()) > 0;
+        if (!efExists) await efCreator.CreateTablesAsync();
+    }
     // Lightweight schema evolution for existing volumes without migrations.
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='OnboardingWorkflows' AND COLUMN_NAME='ProjectId') ALTER TABLE "OnboardingWorkflows" ADD "ProjectId" UNIQUEIDENTIFIER NULL;""");
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name='IX_OnboardingWorkflows_ProjectId' AND object_id=OBJECT_ID('OnboardingWorkflows')) CREATE INDEX "IX_OnboardingWorkflows_ProjectId" ON "OnboardingWorkflows" ("ProjectId");""");
@@ -223,11 +236,20 @@ using (var scope = app.Services.CreateScope())
         VALUES ('00000000-0000-0000-0000-000000000001',7,14,21,0,0,0,0,SYSDATETIMEOFFSET(),0);
     """);
 
+    await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='SubscriptionPlans' AND COLUMN_NAME='Category') ALTER TABLE "SubscriptionPlans" ADD "Category" INT NOT NULL DEFAULT 0;""");
+
     await SeedData.InitializeAsync(scope.ServiceProvider);
+}
+catch (Exception ex)
+{
+    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+    logger.LogError(ex, "DB-Initialisierung fehlgeschlagen: {Message}", ex.Message);
+}
 }
 
 
 
+app.UseCors();
 app.UseExceptionHandler(a => a.Run(async ctx =>
 {
     var ex = ctx.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>()?.Error;
@@ -250,7 +272,6 @@ app.UseExceptionHandler(a => a.Run(async ctx =>
 app.UseSerilogRequestLogging();
 app.UseSwagger();
 app.UseSwaggerUI();
-app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();

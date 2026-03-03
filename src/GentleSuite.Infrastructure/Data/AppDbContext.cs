@@ -85,11 +85,11 @@ public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork
         mb.Entity<Location>().HasOne(x => x.Customer).WithMany(x => x.Locations).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<CustomerNote>().HasOne(x => x.Customer).WithMany(x => x.Notes).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<CustomerService>().HasOne(x => x.Customer).WithMany(x => x.DesiredServices).OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<ActivityLog>().HasOne(x => x.Customer).WithMany(x => x.Activities).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<ActivityLog>().HasOne(x => x.Customer).WithMany(x => x.Activities).OnDelete(DeleteBehavior.ClientSetNull);
         mb.Entity<OnboardingStepTemplate>().HasOne(x => x.WorkflowTemplate).WithMany(x => x.Steps).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<TaskItemTemplate>().HasOne(x => x.StepTemplate).WithMany(x => x.TaskTemplates).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<OnboardingWorkflow>().HasOne(x => x.Customer).WithMany(x => x.OnboardingWorkflows).OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<OnboardingWorkflow>().HasOne(x => x.Project).WithMany(x => x.OnboardingWorkflows).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<OnboardingWorkflow>().HasOne(x => x.Project).WithMany(x => x.OnboardingWorkflows).OnDelete(DeleteBehavior.ClientSetNull);
         mb.Entity<OnboardingWorkflow>().HasOne(x => x.Template).WithMany().OnDelete(DeleteBehavior.Restrict);
         mb.Entity<OnboardingStep>().HasOne(x => x.Workflow).WithMany(x => x.Steps).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<TaskItem>().HasOne(x => x.Step).WithMany(x => x.Tasks).OnDelete(DeleteBehavior.Cascade);
@@ -122,8 +122,8 @@ public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork
         mb.Entity<ProjectTeamMember>().HasKey(x => new { x.ProjectId, x.TeamMemberId });
         mb.Entity<ProjectTeamMember>().HasOne(x => x.Project).WithMany(x => x.TeamMembers).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<ProjectTeamMember>().HasOne(x => x.TeamMember).WithMany().OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<TimeEntry>().HasOne(x => x.Project).WithMany().OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<TimeEntry>().HasOne(x => x.Customer).WithMany().OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<TimeEntry>().HasOne(x => x.Project).WithMany().OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<TimeEntry>().HasOne(x => x.Customer).WithMany().OnDelete(DeleteBehavior.ClientSetNull);
 
         // ProductTeamMember (join table, no owned Id)
         mb.Entity<ProductTeamMember>().HasKey(x => new { x.ProductId, x.TeamMemberId });
@@ -132,20 +132,20 @@ public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork
         mb.Entity<PriceList>().HasOne(x => x.Customer).WithMany().OnDelete(DeleteBehavior.Cascade);
         mb.Entity<PriceListItem>().HasOne(x => x.PriceList).WithMany(x => x.Items).OnDelete(DeleteBehavior.Cascade);
         mb.Entity<PriceListItem>().HasOne(x => x.Product).WithMany(x => x.PriceListItems).OnDelete(DeleteBehavior.Restrict);
-        mb.Entity<PriceListItem>().HasOne(x => x.TeamMember).WithMany().OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<PriceListItem>().HasOne(x => x.TeamMember).WithMany().OnDelete(DeleteBehavior.ClientSetNull);
         mb.Entity<Opportunity>().HasOne(x => x.Customer).WithMany(x => x.Opportunities).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<Opportunity>().HasOne(x => x.Contact).WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<Opportunity>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<Opportunity>().HasOne(x => x.Quote).WithMany().HasForeignKey(x => x.QuoteId).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<Opportunity>().HasOne(x => x.Contact).WithMany().HasForeignKey(x => x.ContactId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<Opportunity>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<Opportunity>().HasOne(x => x.Quote).WithMany().HasForeignKey(x => x.QuoteId).OnDelete(DeleteBehavior.ClientSetNull);
         mb.Entity<SupportTicket>().HasOne(x => x.Customer).WithMany(x => x.SupportTickets).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<SupportTicket>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<SupportTicket>().HasOne(x => x.Subscription).WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<SupportTicket>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<SupportTicket>().HasOne(x => x.Subscription).WithMany().HasForeignKey(x => x.SubscriptionId).OnDelete(DeleteBehavior.ClientSetNull);
         mb.Entity<TicketComment>().HasOne(x => x.Ticket).WithMany(x => x.Comments).HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.Cascade);
-        mb.Entity<CrmActivity>().HasOne(x => x.Customer).WithMany(x => x.CrmActivities).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<CrmActivity>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<CrmActivity>().HasOne(x => x.Opportunity).WithMany().HasForeignKey(x => x.OpportunityId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<CrmActivity>().HasOne(x => x.Ticket).WithMany().HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.SetNull);
-        mb.Entity<CrmActivity>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.SetNull);
+        mb.Entity<CrmActivity>().HasOne(x => x.Customer).WithMany(x => x.CrmActivities).HasForeignKey(x => x.CustomerId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<CrmActivity>().HasOne(x => x.Project).WithMany().HasForeignKey(x => x.ProjectId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<CrmActivity>().HasOne(x => x.Opportunity).WithMany().HasForeignKey(x => x.OpportunityId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<CrmActivity>().HasOne(x => x.Ticket).WithMany().HasForeignKey(x => x.TicketId).OnDelete(DeleteBehavior.ClientSetNull);
+        mb.Entity<CrmActivity>().HasOne(x => x.AssignedTo).WithMany().HasForeignKey(x => x.AssignedToTeamMemberId).OnDelete(DeleteBehavior.ClientSetNull);
 
         // Decimal precision
         foreach (var prop in mb.Model.GetEntityTypes().SelectMany(t => t.GetProperties()).Where(p => p.ClrType == typeof(decimal) || p.ClrType == typeof(decimal?)))
