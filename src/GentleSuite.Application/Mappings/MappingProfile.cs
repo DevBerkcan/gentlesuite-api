@@ -124,7 +124,9 @@ public class MappingProfile : Profile
                 s.Status,
                 s.StartDate,
                 s.NextBillingDate,
-                s.Plan.MonthlyPrice
+                s.Plan.MonthlyPrice,
+                s.ContractDurationMonths,
+                s.ConfirmedAt
             ));
 
         CreateMap<TimeEntry, TimeEntryDto>()

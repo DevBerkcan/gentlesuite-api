@@ -14,10 +14,25 @@ namespace GentleSuite.Infrastructure.Pdf;
 public class PdfService : IPdfService
 {
     private readonly AppDbContext _db;
-    public PdfService(AppDbContext db) { _db = db; QuestPDF.Settings.License = LicenseType.Community; }
+    private readonly IFileStorageService _storage;
+    public PdfService(AppDbContext db, IFileStorageService storage) { _db = db; _storage = storage; QuestPDF.Settings.License = LicenseType.Community; }
+
+    private async Task<byte[]?> LoadLogoAsync(string? path)
+    {
+        if (string.IsNullOrEmpty(path)) return null;
+        try
+        {
+            using var stream = await _storage.DownloadAsync(path);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            return ms.ToArray();
+        }
+        catch { return null; }
+    }
 
     public async Task<byte[]> GenerateQuotePdfAsync(Quote quote, CompanySettings co, CancellationToken ct = default)
     {
+        var logo = await LoadLogoAsync(co.LogoPath);
         var contact = quote.Customer.Contacts.FirstOrDefault(c => c.IsPrimary) ?? quote.Customer.Contacts.FirstOrDefault();
         var loc = quote.Customer.Locations.FirstOrDefault(l => l.IsPrimary) ?? quote.Customer.Locations.FirstOrDefault();
         var oneTime = quote.Lines.Where(l => l.LineType == QuoteLineType.OneTime).OrderBy(l => l.SortOrder).ToList();
@@ -33,7 +48,7 @@ public class PdfService : IPdfService
         {
             p.Size(PageSizes.A4); p.MarginTop(30); p.MarginBottom(30); p.MarginHorizontal(45);
             p.DefaultTextStyle(x => x.FontSize(9.5f).FontColor("#101828"));
-            p.Header().Element(h => BuildDocHeader(h, co, "ANGEBOT", $"Nr. {quote.QuoteNumber} · V{quote.Version}", quote.Customer, contact, loc, $"Datum: {quote.CreatedAt:dd.MM.yyyy}", quote.ExpiresAt.HasValue ? $"Gültig bis: {quote.ExpiresAt:dd.MM.yyyy}" : null));
+            p.Header().Element(h => BuildDocHeader(h, co, logo, "ANGEBOT", $"Nr. {quote.QuoteNumber} · V{quote.Version}", quote.Customer, contact, loc, $"Datum: {quote.CreatedAt:dd.MM.yyyy}", quote.ExpiresAt.HasValue ? $"Gültig bis: {quote.ExpiresAt:dd.MM.yyyy}" : null));
             p.Content().PaddingTop(16).Column(col =>
             {
                 if (!string.IsNullOrEmpty(quote.Subject)) col.Item().Text($"Betr.: {quote.Subject}").Bold().FontSize(11);
@@ -49,8 +64,9 @@ public class PdfService : IPdfService
         })).GeneratePdf();
     }
 
-    public Task<byte[]> GenerateInvoicePdfAsync(Invoice inv, CompanySettings co, CancellationToken ct = default)
+    public async Task<byte[]> GenerateInvoicePdfAsync(Invoice inv, CompanySettings co, CancellationToken ct = default)
     {
+        var logo = await LoadLogoAsync(co.LogoPath);
         var contact = inv.Customer.Contacts.FirstOrDefault(c => c.IsPrimary) ?? inv.Customer.Contacts.FirstOrDefault();
         var loc = inv.Customer.Locations.FirstOrDefault(l => l.IsPrimary) ?? inv.Customer.Locations.FirstOrDefault();
         var lines = inv.Lines.OrderBy(l => l.SortOrder).ToList();
@@ -58,7 +74,7 @@ public class PdfService : IPdfService
         var label = inv.Type == InvoiceType.Cancellation ? "Stornorechnung" : inv.Type == InvoiceType.CreditNote ? "Gutschrift" : "Rechnung";
         var isSmallBusiness = inv.TaxMode == TaxMode.SmallBusiness;
 
-        return Task.FromResult(Document.Create(c => c.Page(p =>
+        return Document.Create(c => c.Page(p =>
         {
             p.Size(PageSizes.A4);
             p.MarginTop(40);
@@ -69,10 +85,16 @@ public class PdfService : IPdfService
             // === HEADER ===
             p.Header().Column(header =>
             {
-                // Row 1: Company name left, "Rechnung" right
+                // Row 1: Company name/logo left, "Rechnung" right
                 header.Item().Row(row =>
                 {
-                    row.RelativeItem(3).AlignBottom().Text(co.CompanyName.ToUpperInvariant()).FontSize(20).Bold().FontColor("#1a1a1a").LetterSpacing(0.05f);
+                    row.RelativeItem(3).AlignBottom().Column(lc =>
+                    {
+                        if (logo != null)
+                            lc.Item().MaxHeight(45).MaxWidth(180).Image(logo, ImageScaling.FitArea);
+                        else
+                            lc.Item().Text(co.CompanyName.ToUpperInvariant()).FontSize(20).Bold().FontColor("#1a1a1a").LetterSpacing(0.05f);
+                    });
                     row.RelativeItem(2).AlignRight().AlignBottom().Text(label).FontSize(22).Bold().FontColor("#1a1a1a");
                 });
 
@@ -368,7 +390,7 @@ public class PdfService : IPdfService
                     });
                 });
             });
-        })).GeneratePdf());
+        })).GeneratePdf();
     }
 
     /// <summary>
@@ -399,13 +421,19 @@ public class PdfService : IPdfService
     }
 
     // === Helpers ===
-    private static void BuildDocHeader(IContainer container, CompanySettings co, string docType, string docNumber, Customer cust, Contact? contact, Location? loc, params string?[] meta)
+    private static void BuildDocHeader(IContainer container, CompanySettings co, byte[]? logo, string docType, string docNumber, Customer cust, Contact? contact, Location? loc, params string?[] meta)
     {
         container.Column(col =>
         {
             col.Item().Row(row =>
             {
-                row.RelativeItem(3).Text(co.CompanyName).FontSize(18).Bold().FontColor("#344054");
+                row.RelativeItem(3).Column(lc =>
+                {
+                    if (logo != null)
+                        lc.Item().MaxHeight(50).MaxWidth(180).Image(logo, ImageScaling.FitArea);
+                    else
+                        lc.Item().Text(co.CompanyName).FontSize(18).Bold().FontColor("#344054");
+                });
                 row.RelativeItem(2).AlignRight().Column(c => { c.Item().Text(docType).FontSize(22).Bold().FontColor("#344054"); c.Item().Text(docNumber).FontColor("#667085"); });
             });
             col.Item().PaddingTop(8).PaddingBottom(12).LineHorizontal(2).LineColor("#344054");
@@ -427,16 +455,30 @@ public class PdfService : IPdfService
     {
         container.Table(table =>
         {
-            table.ColumnsDefinition(c => { c.ConstantColumn(25); c.RelativeColumn(4); c.RelativeColumn(1); c.RelativeColumn(1.2f); c.RelativeColumn(1.2f); });
+            table.ColumnsDefinition(c => { c.ConstantColumn(25); c.RelativeColumn(4); c.RelativeColumn(1); c.RelativeColumn(1.2f); c.RelativeColumn(0.8f); c.RelativeColumn(1.2f); });
             var hs = TextStyle.Default.FontSize(8).Bold().FontColor("#FFF");
-            table.Header(h => { h.Cell().Background("#344054").Padding(5).Text("Pos").Style(hs); h.Cell().Background("#344054").Padding(5).Text("Leistung").Style(hs); h.Cell().Background("#344054").Padding(5).AlignRight().Text("Menge").Style(hs); h.Cell().Background("#344054").Padding(5).AlignRight().Text(monthly ? "Monat" : "Preis").Style(hs); h.Cell().Background("#344054").Padding(5).AlignRight().Text("Gesamt").Style(hs); });
+            table.Header(h =>
+            {
+                h.Cell().Background("#344054").Padding(5).Text("Pos").Style(hs);
+                h.Cell().Background("#344054").Padding(5).Text("Leistung").Style(hs);
+                h.Cell().Background("#344054").Padding(5).AlignRight().Text("Menge").Style(hs);
+                h.Cell().Background("#344054").Padding(5).AlignRight().Text(monthly ? "Monat" : "Preis").Style(hs);
+                h.Cell().Background("#344054").Padding(5).AlignRight().Text("MwSt").Style(hs);
+                h.Cell().Background("#344054").Padding(5).AlignRight().Text("Gesamt").Style(hs);
+            });
             for (int i = 0; i < items.Count; i++)
             {
                 var l = items[i]; var bg = i % 2 == 0 ? "#FFF" : "#F7F8FA";
                 table.Cell().Background(bg).Padding(5).Text($"{i+1}").FontSize(8);
-                table.Cell().Background(bg).Padding(5).Column(c => { c.Item().Text(l.Title).Bold().FontSize(9); if (!string.IsNullOrEmpty(l.Description)) c.Item().Text(l.Description).FontSize(8).FontColor("#667085"); });
+                table.Cell().Background(bg).Padding(5).Column(c =>
+                {
+                    c.Item().Text(l.Title).Bold().FontSize(9);
+                    if (!string.IsNullOrEmpty(l.Description)) c.Item().Text(l.Description).FontSize(8).FontColor("#667085");
+                    if (l.DiscountPercent > 0) c.Item().Text($"Rabatt: {l.DiscountPercent:N0}%").FontSize(8).FontColor("#B54708");
+                });
                 table.Cell().Background(bg).Padding(5).AlignRight().Text(l.Quantity.ToString("N0")).FontSize(8);
                 table.Cell().Background(bg).Padding(5).AlignRight().Text($"{l.UnitPrice:N2} €").FontSize(8);
+                table.Cell().Background(bg).Padding(5).AlignRight().Text($"{l.VatPercent}%").FontSize(8);
                 table.Cell().Background(bg).Padding(5).AlignRight().Text($"{l.Total:N2} €").FontSize(8);
             }
         });

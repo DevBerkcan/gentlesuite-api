@@ -91,6 +91,16 @@ public class ReminderJobs
                 inv.Lines.Add(new InvoiceLine { Title = sub.Plan.Name, Description = $"Monatliche Abrechnung {DateTimeOffset.UtcNow:MMMM yyyy}", Quantity = 1, UnitPrice = sub.Plan.MonthlyPrice, VatPercent = 19, SortOrder = 1 });
                 inv.RecalculateTotals(); _db.Invoices.Add(inv);
                 sub.NextBillingDate = sub.NextBillingDate.AddMonths(cycleMonths);
+                if (sub.ContractDurationMonths.HasValue)
+                {
+                    var contractEnd = sub.StartDate.AddMonths(sub.ContractDurationMonths.Value);
+                    if (sub.NextBillingDate >= contractEnd)
+                    {
+                        sub.Status = SubscriptionStatus.Expired;
+                        sub.EndDate = contractEnd;
+                        _log.LogInformation("Subscription {SubId} expired after {Months} months contract.", sub.Id, sub.ContractDurationMonths.Value);
+                    }
+                }
                 await _db.SaveChangesAsync();
 
                 var contact = sub.Customer.Contacts.FirstOrDefault(c => c.IsPrimary) ?? sub.Customer.Contacts.FirstOrDefault();

@@ -239,6 +239,8 @@ try
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='SubscriptionPlans' AND COLUMN_NAME='Category') ALTER TABLE "SubscriptionPlans" ADD "Category" INT NOT NULL DEFAULT 0;""");
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Customers' AND COLUMN_NAME='OnboardingToken') ALTER TABLE "Customers" ADD "OnboardingToken" UNIQUEIDENTIFIER NULL;""");
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Customers' AND COLUMN_NAME='OnboardingIntakeDone') ALTER TABLE "Customers" ADD "OnboardingIntakeDone" BIT NOT NULL DEFAULT 0;""");
+    await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='CustomerSubscriptions' AND COLUMN_NAME='ContractDurationMonths') ALTER TABLE "CustomerSubscriptions" ADD "ContractDurationMonths" INT NULL;""");
+    await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='CustomerSubscriptions' AND COLUMN_NAME='ConfirmedAt') ALTER TABLE "CustomerSubscriptions" ADD "ConfirmedAt" DATETIMEOFFSET NULL;""");
 
     await SeedData.InitializeAsync(scope.ServiceProvider);
 }
