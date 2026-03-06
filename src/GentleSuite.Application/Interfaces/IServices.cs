@@ -80,6 +80,7 @@ public interface IInvoiceService
     Task<InvoiceDetailDto> RecordPaymentAsync(Guid id, RecordPaymentRequest req, CancellationToken ct = default);
     Task<InvoiceDetailDto> CreateCancellationAsync(Guid id, CreateCancellationRequest req, CancellationToken ct = default);
     Task<byte[]> GeneratePdfAsync(Guid id, CancellationToken ct = default);
+    Task<byte[]> GenerateXRechnungXmlAsync(Guid id, CancellationToken ct = default);
     Task SendAsync(Guid id, CancellationToken ct = default);
 }
 
@@ -111,6 +112,13 @@ public interface IVatService
     Task<VatReportDto> GetVatReportAsync(int year, int month, CancellationToken ct = default);
     Task<VatPeriodDto> SubmitVatPeriodAsync(int year, int month, CancellationToken ct = default);
     Task<byte[]> ExportDatevAsync(DatevExportRequest req, CancellationToken ct = default);
+    Task<byte[]> GenerateElsterXmlAsync(int year, int month, CancellationToken ct = default);
+}
+
+public interface IExportService
+{
+    Task<ExportYearStatsDto> GetYearStatsAsync(int year, CancellationToken ct = default);
+    Task<byte[]> ExportYearZipAsync(int year, bool includeInvoices, bool includeExpenses, CancellationToken ct = default);
 }
 
 public interface IProjectService

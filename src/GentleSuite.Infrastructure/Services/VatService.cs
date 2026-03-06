@@ -6,6 +6,7 @@ using GentleSuite.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml.Linq;
 
 namespace GentleSuite.Infrastructure.Services;
 
@@ -30,14 +31,14 @@ public class VatServiceImpl : IVatService
             .ToListAsync(ct);
 
         var invoiceLines = new List<VatReportLineDto>();
-        decimal outputVat19 = 0, outputVat7 = 0;
+        decimal outputVat19 = 0, outputVat7 = 0, netBase19 = 0, netBase7 = 0;
 
         foreach (var inv in invoices)
         {
             foreach (var line in inv.Lines)
             {
-                if (line.VatPercent == 19) outputVat19 += line.VatAmount;
-                else if (line.VatPercent == 7) outputVat7 += line.VatAmount;
+                if (line.VatPercent == 19) { outputVat19 += line.VatAmount; netBase19 += line.NetTotal; }
+                else if (line.VatPercent == 7) { outputVat7 += line.VatAmount; netBase7 += line.NetTotal; }
                 invoiceLines.Add(new VatReportLineDto(inv.InvoiceNumber, inv.InvoiceDate, line.Title, line.NetTotal, line.VatAmount, line.VatPercent));
             }
         }
@@ -47,8 +48,8 @@ public class VatServiceImpl : IVatService
         {
             foreach (var line in inv.Lines)
             {
-                if (line.VatPercent == 19) outputVat19 -= line.VatAmount;
-                else if (line.VatPercent == 7) outputVat7 -= line.VatAmount;
+                if (line.VatPercent == 19) { outputVat19 -= line.VatAmount; netBase19 -= line.NetTotal; }
+                else if (line.VatPercent == 7) { outputVat7 -= line.VatAmount; netBase7 -= line.NetTotal; }
                 invoiceLines.Add(new VatReportLineDto(inv.InvoiceNumber, inv.InvoiceDate, $"[Storno] {line.Title}", -line.NetTotal, -line.VatAmount, line.VatPercent));
             }
         }
@@ -69,7 +70,7 @@ public class VatServiceImpl : IVatService
         var totalOutputVat = outputVat19 + outputVat7;
         var payableTax = totalOutputVat - inputVat;
 
-        return new VatReportDto(year, month, outputVat19, outputVat7, totalOutputVat, inputVat, payableTax, invoiceLines, expenseLines);
+        return new VatReportDto(year, month, outputVat19, outputVat7, totalOutputVat, inputVat, payableTax, netBase19, netBase7, invoiceLines, expenseLines);
     }
 
     public async Task<VatPeriodDto> SubmitVatPeriodAsync(int year, int month, CancellationToken ct)
@@ -151,5 +152,46 @@ public class VatServiceImpl : IVatService
         }
 
         return Encoding.GetEncoding("iso-8859-1").GetBytes(sb.ToString());
+    }
+
+    public async Task<byte[]> GenerateElsterXmlAsync(int year, int month, CancellationToken ct)
+    {
+        var report = await GetVatReportAsync(year, month, ct);
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct);
+        var inv = new System.Globalization.CultureInfo("de-DE");
+
+        string Fmt(decimal v) => v.ToString("F2", inv);
+
+        var xml = new XDocument(
+            new XDeclaration("1.0", "UTF-8", null),
+            new XComment("GentleSuite – ELSTER UStVA Ausfüllhilfe. Diese Datei ist KEIN offizielles ELSTER-Dokument, sondern eine Ausfüllhilfe für das ELSTER Online Portal (www.elster.de)."),
+            new XElement("UStVA_Ausfuellhilfe",
+                new XAttribute("Jahr", year),
+                new XAttribute("Zeitraum", month.ToString("00")),
+                new XAttribute("Erstellt", DateTime.Now.ToString("dd.MM.yyyy")),
+                new XElement("Steuerpflichtiger",
+                    new XElement("Name", co?.LegalName ?? co?.CompanyName ?? ""),
+                    new XElement("Steuernummer", co?.TaxId ?? ""),
+                    new XElement("UStIdNr", co?.VatId ?? "")
+                ),
+                new XElement("Kennzahlen",
+                    new XComment("KZ 81 + 83: Steuerpflichtige Umsätze 19%"),
+                    new XElement("Kz81", new XAttribute("Bezeichnung", "Lieferungen/Leistungen 19% – Nettobetrag"), Fmt(report.NetBase19)),
+                    new XElement("Kz83", new XAttribute("Bezeichnung", "Umsatzsteuer 19%"), Fmt(report.OutputVat19)),
+                    new XComment("KZ 86 + 85: Steuerpflichtige Umsätze 7%"),
+                    new XElement("Kz86", new XAttribute("Bezeichnung", "Lieferungen/Leistungen 7% – Nettobetrag"), Fmt(report.NetBase7)),
+                    new XElement("Kz85", new XAttribute("Bezeichnung", "Umsatzsteuer 7%"), Fmt(report.OutputVat7)),
+                    new XComment("KZ 66: Vorsteuer aus Eingangsrechnungen"),
+                    new XElement("Kz66", new XAttribute("Bezeichnung", "Abziehbare Vorsteuerbeträge"), Fmt(report.InputVat)),
+                    new XComment("KZ 69 oder KZ 67: Zahllast / Erstattung"),
+                    new XElement("Kz69", new XAttribute("Bezeichnung", "Verbleibende USt-Zahllast (wenn positiv)"), Fmt(Math.Max(0, report.PayableTax))),
+                    new XElement("Kz67", new XAttribute("Bezeichnung", "Erstattungsbetrag (wenn Überschuss)"), Fmt(Math.Max(0, -report.PayableTax)))
+                )
+            )
+        );
+
+        using var ms = new MemoryStream();
+        xml.Save(ms);
+        return ms.ToArray();
     }
 }

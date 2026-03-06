@@ -90,6 +90,7 @@ builder.Services.AddScoped<ICrmActivityService, CrmActivityServiceImpl>();
 builder.Services.AddScoped<INumberSequenceService, NumberSequenceServiceImpl>();
 builder.Services.AddScoped<IPdfService, PdfService>();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
+builder.Services.AddScoped<IExportService, ExportServiceImpl>();
 builder.Services.Configure<SmtpSettings>(builder.Configuration.GetSection("Smtp"));
 builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
 builder.Services.AddScoped<ReminderJobs>();

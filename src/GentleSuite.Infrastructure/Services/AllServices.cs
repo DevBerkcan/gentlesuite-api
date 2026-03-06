@@ -7,7 +7,9 @@ using GentleSuite.Domain.Interfaces;
 using GentleSuite.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Http;
+using System.IO.Compression;
 using System.Security.Claims;
+using System.Text;
 using System.Text.Json;
 
 namespace GentleSuite.Infrastructure.Services;
@@ -916,4 +918,128 @@ public class LocalFileStorageService : IFileStorageService
     public async Task<string> UploadAsync(Stream stream, string fileName, string contentType, CancellationToken ct) { var dir = Path.Combine(_base, DateTime.UtcNow.ToString("yyyy/MM")); Directory.CreateDirectory(dir); var path = Path.Combine(dir, $"{Guid.NewGuid()}{Path.GetExtension(fileName)}"); using var fs = File.Create(path); await stream.CopyToAsync(fs, ct); return path; }
     public Task<Stream> DownloadAsync(string path, CancellationToken ct) => Task.FromResult<Stream>(File.OpenRead(path));
     public Task DeleteAsync(string path, CancellationToken ct) { if (File.Exists(path)) File.Delete(path); return Task.CompletedTask; }
+}
+
+// === Export (Steuerbereich) ===
+public class ExportServiceImpl(AppDbContext db, IPdfService pdf, IFileStorageService storage) : IExportService
+{
+    public async Task<ExportYearStatsDto> GetYearStatsAsync(int year, CancellationToken ct)
+    {
+        var from = new DateTimeOffset(year, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(year + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var invCount = await db.Invoices.CountAsync(i => i.IsFinalized && i.InvoiceDate >= from && i.InvoiceDate < to, ct);
+        var invTotal = await db.Invoices.Where(i => i.IsFinalized && i.InvoiceDate >= from && i.InvoiceDate < to).SumAsync(i => (decimal?)i.GrossTotal, ct) ?? 0;
+        var expCount = await db.Expenses.CountAsync(e => e.ExpenseDate >= from && e.ExpenseDate < to, ct);
+        var expTotal = await db.Expenses.Where(e => e.ExpenseDate >= from && e.ExpenseDate < to).SumAsync(e => (decimal?)e.GrossAmount, ct) ?? 0;
+        var expWithReceipt = await db.Expenses.CountAsync(e => e.ExpenseDate >= from && e.ExpenseDate < to && e.ReceiptPath != null, ct);
+        return new ExportYearStatsDto(year, invCount, invTotal, expCount, expTotal, expWithReceipt);
+    }
+
+    public async Task<byte[]> ExportYearZipAsync(int year, bool includeInvoices, bool includeExpenses, CancellationToken ct)
+    {
+        var from = new DateTimeOffset(year, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var to = new DateTimeOffset(year + 1, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var co = await db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings();
+        var summary = new StringBuilder("Typ;Nummer;Datum;Partner;Netto (EUR);MwSt (EUR);Brutto (EUR);Status\n");
+
+        using var ms = new MemoryStream();
+        using (var zip = new ZipArchive(ms, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            if (includeInvoices)
+            {
+                var invoices = await db.Invoices
+                    .Include(i => i.Customer).ThenInclude(c => c.Contacts)
+                    .Include(i => i.Customer).ThenInclude(c => c.Locations)
+                    .Include(i => i.Lines)
+                    .Where(i => i.IsFinalized && i.InvoiceDate >= from && i.InvoiceDate < to)
+                    .OrderBy(i => i.InvoiceDate)
+                    .ToListAsync(ct);
+
+                foreach (var inv in invoices)
+                {
+                    var pdfBytes = await pdf.GenerateInvoicePdfAsync(inv, co, ct);
+                    var safe = SanitizeFileName(inv.Customer.CompanyName);
+                    var entry = zip.CreateEntry($"Rechnungen/{inv.InvoiceNumber}_{safe}.pdf", CompressionLevel.Fastest);
+                    using var es = entry.Open();
+                    await es.WriteAsync(pdfBytes, ct);
+                    summary.AppendLine($"Rechnung;{inv.InvoiceNumber};{inv.InvoiceDate:dd.MM.yyyy};{inv.Customer.CompanyName};{inv.NetTotal:N2};{inv.VatAmount:N2};{inv.GrossTotal:N2};{inv.Status}");
+                }
+            }
+
+            if (includeExpenses)
+            {
+                var expenses = await db.Expenses
+                    .Where(e => e.ExpenseDate >= from && e.ExpenseDate < to)
+                    .OrderBy(e => e.ExpenseDate)
+                    .ToListAsync(ct);
+
+                foreach (var exp in expenses)
+                {
+                    if (!string.IsNullOrEmpty(exp.ReceiptPath))
+                    {
+                        try
+                        {
+                            using var receiptStream = await storage.DownloadAsync(exp.ReceiptPath, ct);
+                            var ext = Path.GetExtension(exp.ReceiptPath);
+                            var name = $"{exp.ExpenseDate:yyyy-MM-dd}_{SanitizeFileName(exp.Supplier ?? exp.Description ?? "Ausgabe")}{ext}";
+                            var entry = zip.CreateEntry($"Ausgaben/{name}", CompressionLevel.Fastest);
+                            using var es = entry.Open();
+                            await receiptStream.CopyToAsync(es, ct);
+                        }
+                        catch { /* skip unreadable receipts */ }
+                    }
+                    summary.AppendLine($"Ausgabe;{exp.ExpenseNumber ?? ""};{exp.ExpenseDate:dd.MM.yyyy};{exp.Supplier ?? ""};{exp.NetAmount:N2};{exp.VatAmount:N2};{exp.GrossAmount:N2};{exp.Status}");
+                }
+            }
+
+            // DATEV Jahres-CSV
+            var datevBytes = BuildDatevYearlyCsv(year, from, to, co, includeInvoices, includeExpenses);
+            var datevEntry = zip.CreateEntry($"DATEV_{year}.csv", CompressionLevel.Fastest);
+            using var datevEs = datevEntry.Open();
+            await datevEs.WriteAsync(datevBytes, ct);
+
+            // Zusammenfassung CSV
+            var sumEntry = zip.CreateEntry($"Zusammenfassung_{year}.csv", CompressionLevel.Fastest);
+            using var sumEs = sumEntry.Open();
+            await sumEs.WriteAsync(Encoding.UTF8.GetBytes(summary.ToString()), ct);
+        }
+
+        ms.Position = 0;
+        return ms.ToArray();
+    }
+
+    private byte[] BuildDatevYearlyCsv(int year, DateTimeOffset from, DateTimeOffset to, CompanySettings co, bool inclInv, bool inclExp)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"\"EXTF\";700;21;\"Buchungsstapel\";7;;;;;\"\";\"\";\"\";\"{co.TaxId ?? ""}\";;;;;{year}0101;4;;;;;;\"\";\"\"]");
+        sb.AppendLine("Umsatz (ohne Soll/Haben-Kz);Soll/Haben-Kz;WKZ Umsatz;Kurs;Basisumsatz;WKZ Basisumsatz;Konto;Gegenkonto (ohne BU-Schluessel);BU-Schluessel;Belegdatum;Belegfeld 1;Belegfeld 2;Skonto;Buchungstext");
+        if (inclInv)
+        {
+            var invs = db.Invoices.Include(i => i.Lines).Where(i => i.IsFinalized && i.InvoiceDate >= from && i.InvoiceDate < to).ToList();
+            foreach (var inv in invs)
+            {
+                var sign = inv.Type == InvoiceType.Cancellation ? -1 : 1;
+                foreach (var line in inv.Lines)
+                {
+                    var account = line.VatPercent == 19 ? "8400" : line.VatPercent == 7 ? "8300" : "8100";
+                    var amount = (sign * line.GrossTotal).ToString("F2").Replace(".", ",");
+                    sb.AppendLine($"{amount};S;EUR;;;;\"{account}\";\"1400\";;{inv.InvoiceDate:ddMM};\"{inv.InvoiceNumber}\";;;\"{line.Title}\"");
+                }
+            }
+        }
+        if (inclExp)
+        {
+            var exps = db.Expenses.Include(e => e.Category).Where(e => e.Status == ExpenseStatus.Booked && e.ExpenseDate >= from && e.ExpenseDate < to).ToList();
+            foreach (var exp in exps)
+            {
+                var account = exp.Category?.AccountNumber ?? "4590";
+                var amount = exp.GrossAmount.ToString("F2").Replace(".", ",");
+                sb.AppendLine($"{amount};S;EUR;;;;\"{account}\";\"1600\";;{exp.ExpenseDate:ddMM};\"{exp.ExpenseNumber ?? ""}\";;;\"{exp.Supplier ?? exp.Description ?? ""}\"");
+            }
+        }
+        return Encoding.GetEncoding("iso-8859-1").GetBytes(sb.ToString());
+    }
+
+    private static string SanitizeFileName(string s) =>
+        string.Concat(s.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)).Trim().TrimEnd('.');
 }

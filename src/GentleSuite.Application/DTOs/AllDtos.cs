@@ -201,7 +201,7 @@ public record CreateJournalEntryLineRequest(string AccountNumber, string Account
 
 // === Tax ===
 public record VatPeriodDto(Guid Id, int Year, int Month, bool IsQuarterly, decimal OutputVat, decimal InputVat, decimal PayableTax, bool IsSubmitted);
-public record VatReportDto(int Year, int Month, decimal OutputVat19, decimal OutputVat7, decimal TotalOutputVat, decimal InputVat, decimal PayableTax, List<VatReportLineDto> InvoiceLines, List<VatReportLineDto> ExpenseLines);
+public record VatReportDto(int Year, int Month, decimal OutputVat19, decimal OutputVat7, decimal TotalOutputVat, decimal InputVat, decimal PayableTax, decimal NetBase19, decimal NetBase7, List<VatReportLineDto> InvoiceLines, List<VatReportLineDto> ExpenseLines);
 public record VatReportLineDto(string DocumentNumber, DateTimeOffset Date, string? Description, decimal NetAmount, decimal VatAmount, int VatPercent);
 
 // === DATEV ===
@@ -254,6 +254,9 @@ public record UpdateReminderStopRequest(bool ReminderStop);
 public record DashboardKpis(int OpenOnboardings, int OverdueTasks, int OpenQuotes, int OverdueInvoices, int ActiveCustomers, int ActiveSubscriptions, decimal MonthlyRecurringRevenue);
 public record FinanceDashboardDto(decimal RevenueThisMonth, decimal RevenueLastMonth, decimal OpenReceivables, decimal OverdueReceivables, int OverdueInvoiceCount, decimal ExpensesThisMonth, decimal VatPayable, decimal TaxReserveRecommendation, List<MonthlyRevenueDto> RevenueChart);
 public record MonthlyRevenueDto(int Year, int Month, decimal Revenue, decimal Expenses);
+
+// === Export ===
+public record ExportYearStatsDto(int Year, int InvoiceCount, decimal InvoiceGrossTotal, int ExpenseCount, decimal ExpenseGrossTotal, int ExpensesWithReceipt);
 
 // === File ===
 public record FileUploadDto(Guid Id, string FileName, string ContentType, long FileSize, DateTimeOffset CreatedAt);

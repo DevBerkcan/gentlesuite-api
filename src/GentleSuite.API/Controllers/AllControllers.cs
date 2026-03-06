@@ -151,6 +151,13 @@ public class InvoicesController(IInvoiceService svc) : ControllerBase
     }
     [HttpPost("{id}/send")] public async Task<IActionResult> Send(Guid id) { await svc.SendAsync(id); return NoContent(); }
     [HttpGet("{id}/pdf")] public async Task<IActionResult> Pdf(Guid id) => File(await svc.GeneratePdfAsync(id), "application/pdf", $"Rechnung.pdf");
+    [HttpGet("{id}/xrechnung")] public async Task<IActionResult> XRechnung(Guid id)
+    {
+        var xml = await svc.GenerateXRechnungXmlAsync(id);
+        var inv = await svc.GetByIdAsync(id);
+        var fileName = $"XRechnung_{inv?.InvoiceNumber ?? id.ToString()}.xml";
+        return File(xml, "application/xml", fileName);
+    }
 }
 
 [ApiController, Route("api/[controller]"), Authorize]
@@ -391,6 +398,27 @@ public class VatController(IVatService svc) : ControllerBase
     {
         var data = await svc.ExportDatevAsync(new DatevExportRequest(year, month, includeInvoices, includeExpenses, includeJournal));
         return File(data, "text/csv", $"DATEV_Export_{year}_{month:D2}.csv");
+    }
+    [HttpGet("elster-xml"), Authorize(Policy = "AccountingOrAdmin")] public async Task<IActionResult> ElsterXml([FromQuery] int year, [FromQuery] int month)
+    {
+        var xml = await svc.GenerateElsterXmlAsync(year, month);
+        return File(xml, "application/xml", $"ELSTER_UStVA_{year}_{month:00}.xml");
+    }
+}
+
+[ApiController, Route("api/[controller]"), Authorize]
+public class ExportController(IExportService svc) : ControllerBase
+{
+    [HttpGet("year/stats")]
+    public async Task<ActionResult<ExportYearStatsDto>> Stats([FromQuery] int year)
+        => Ok(await svc.GetYearStatsAsync(year));
+
+    [HttpGet("year")]
+    public async Task<IActionResult> YearZip([FromQuery] int year,
+        [FromQuery] bool includeInvoices = true, [FromQuery] bool includeExpenses = true)
+    {
+        var zip = await svc.ExportYearZipAsync(year, includeInvoices, includeExpenses);
+        return File(zip, "application/zip", $"Steuerunterlagen_{year}.zip");
     }
 }
 

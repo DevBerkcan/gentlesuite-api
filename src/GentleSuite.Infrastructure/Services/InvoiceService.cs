@@ -6,6 +6,7 @@ using GentleSuite.Domain.Enums;
 using GentleSuite.Domain.Interfaces;
 using GentleSuite.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
+using s2industries.ZUGFeRD;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -244,6 +245,107 @@ public class InvoiceServiceImpl : IInvoiceService
         var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "GentleSuite" };
         return await _pdf.GenerateInvoicePdfAsync(inv, co, ct);
     }
+
+    public async Task<byte[]> GenerateXRechnungXmlAsync(Guid id, CancellationToken ct)
+    {
+        var inv = await _db.Invoices
+            .Include(i => i.Customer).ThenInclude(c => c.Locations)
+            .Include(i => i.Lines)
+            .FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw new KeyNotFoundException();
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "GentleSuite" };
+
+        var desc = InvoiceDescriptor.CreateInvoice(inv.InvoiceNumber, inv.InvoiceDate, CurrencyCodes.EUR);
+        desc.BusinessProcess = "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0";
+
+        // Seller
+        desc.SetSeller(
+            name: co.LegalName ?? co.CompanyName,
+            postcode: co.ZipCode ?? "",
+            city: co.City ?? "",
+            street: co.Street ?? "",
+            country: CountryCodes.DE);
+        if (!string.IsNullOrEmpty(co.VatId))
+            desc.AddSellerTaxRegistration(co.VatId, TaxRegistrationSchemeID.VA);
+        if (!string.IsNullOrEmpty(co.TaxId))
+            desc.AddSellerTaxRegistration(co.TaxId, TaxRegistrationSchemeID.FC);
+
+        // Buyer
+        var loc = inv.Customer.Locations.FirstOrDefault(l => l.IsPrimary) ?? inv.Customer.Locations.FirstOrDefault();
+        desc.SetBuyer(
+            name: inv.Customer.CompanyName,
+            postcode: loc?.ZipCode ?? "",
+            city: loc?.City ?? "",
+            street: loc?.Street ?? "",
+            country: CountryCodes.DE,
+            id: inv.Customer.CustomerNumber);
+
+        // Delivery date
+        desc.ActualDeliveryDate = inv.ServiceDateFrom ?? inv.InvoiceDate;
+
+        // Payment terms
+        desc.AddTradePaymentTerms(inv.PaymentTerms ?? "", inv.DueDate);
+
+        // Bank account
+        if (!string.IsNullOrEmpty(co.Iban))
+        {
+            desc.SetPaymentMeans(PaymentMeansTypeCodes.SEPACreditTransfer);
+            desc.AddCreditorFinancialAccount(co.Iban, co.Bic, bankName: co.BankName);
+        }
+
+        // Determine VAT category based on TaxMode
+        var vatCategory = inv.TaxMode switch
+        {
+            TaxMode.SmallBusiness => TaxCategoryCodes.E,   // Exempt (§19 UStG)
+            TaxMode.ReverseCharge => TaxCategoryCodes.AE,  // Reverse charge
+            _ => TaxCategoryCodes.S                          // Standard
+        };
+
+        // VAT summary per rate
+        var vatGroups = inv.Lines.GroupBy(l => l.VatPercent);
+        foreach (var grp in vatGroups)
+        {
+            desc.AddApplicableTradeTax(
+                basisAmount: grp.Sum(l => l.NetTotal),
+                percent: grp.Key,
+                typeCode: TaxTypes.VAT,
+                categoryCode: vatCategory);
+        }
+
+        // Line items
+        foreach (var line in inv.Lines)
+        {
+            desc.AddTradeLineItem(
+                name: line.Title,
+                description: line.Description,
+                netUnitPrice: line.UnitPrice,
+                billedQuantity: line.Quantity,
+                unitCode: MapUnit(line.Unit),
+                lineTotalAmount: line.NetTotal,
+                taxPercent: line.VatPercent,
+                taxType: TaxTypes.VAT,
+                categoryCode: vatCategory);
+        }
+
+        // Totals
+        desc.SetTotals(
+            lineTotalAmount: inv.NetTotal,
+            taxBasisAmount: inv.NetTotal,
+            taxTotalAmount: inv.VatAmount,
+            grandTotalAmount: inv.GrossTotal,
+            duePayableAmount: inv.GrossTotal);
+
+        using var ms = new MemoryStream();
+        desc.Save(ms, ZUGFeRDVersion.Version23, Profile.XRechnung);
+        return ms.ToArray();
+    }
+
+    private static QuantityCodes MapUnit(string? unit) => unit?.ToUpperInvariant() switch
+    {
+        "H" or "STD" or "HUR" => QuantityCodes.HUR,
+        "DAY" or "TAG" or "D" => QuantityCodes.DAY,
+        "MON" or "MONAT" => QuantityCodes.MON,
+        _ => QuantityCodes.H87  // Stück / piece
+    };
 
     public async Task SendAsync(Guid id, CancellationToken ct)
     {
