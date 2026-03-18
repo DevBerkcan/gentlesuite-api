@@ -32,7 +32,10 @@ public class QuoteServiceImpl : IQuoteService
         if (!string.IsNullOrWhiteSpace(p.Search)) q = q.Where(x => x.QuoteNumber.Contains(p.Search) || x.Customer.CompanyName.ToLower().Contains(p.Search.ToLower()));
         var total = await q.CountAsync(ct);
         var items = await q.OrderByDescending(x => x.CreatedAt).Skip((p.Page-1)*p.PageSize).Take(p.PageSize).ToListAsync(ct);
-        return new PagedResult<QuoteListDto>(_mapper.Map<List<QuoteListDto>>(items), total, p.Page, p.PageSize);
+        var quoteIds = items.Select(x => x.Id).ToList();
+        var invoicedIds = await _db.Invoices.Where(i => i.QuoteId.HasValue && quoteIds.Contains(i.QuoteId!.Value)).Select(i => i.QuoteId!.Value).ToHashSetAsync(ct);
+        var dtos = items.Select(x => new QuoteListDto(x.Id, x.QuoteNumber, x.Customer.CompanyName, x.Status, x.SignatureStatus, x.GrandTotal, x.Version, x.CreatedAt, x.ExpiresAt, invoicedIds.Contains(x.Id))).ToList();
+        return new PagedResult<QuoteListDto>(dtos, total, p.Page, p.PageSize);
     }
 
     public async Task<QuoteDetailDto?> GetByIdAsync(Guid id, CancellationToken ct)
@@ -215,8 +218,8 @@ public class QuoteServiceImpl : IQuoteService
     public async Task<InvoiceDetailDto> ConvertToInvoiceAsync(Guid quoteId, CancellationToken ct)
     {
         var quote = await _db.Quotes.Include(q => q.Customer).Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == quoteId, ct) ?? throw new KeyNotFoundException();
-        if (quote.Status != QuoteStatus.Ordered)
-            throw new InvalidOperationException("Nur bestätigte Aufträge können in eine Rechnung umgewandelt werden.");
+        if (quote.Status == QuoteStatus.Rejected || quote.Status == QuoteStatus.Expired)
+            throw new InvalidOperationException("Abgelehnte oder abgelaufene Angebote können nicht in Rechnungen umgewandelt werden.");
         var invoice = await EnsureInvoiceFromQuoteAsync(quote, ct);
         var fullInvoice = await _db.Invoices
             .Include(i => i.Customer)

@@ -363,7 +363,7 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<InvoiceDetailDto> CreateFromTimeEntriesAsync(CreateInvoiceFromTimeEntriesRequest req, CancellationToken ct)
     {
-        var entries = await _db.TimeEntries.Include(t => t.Project).Where(t => req.TimeEntryIds.Contains(t.Id) && !t.IsInvoiced).ToListAsync(ct);
+        var entries = await _db.TimeEntries.Include(t => t.Project).Where(t => req.TimeEntryIds.Contains(t.Id) && !t.IsInvoiced && t.IsBillable).ToListAsync(ct);
         if (!entries.Any()) throw new InvalidOperationException("Keine abrechenbaren Zeiteinträge gefunden.");
         var co = await _db.CompanySettings.FirstOrDefaultAsync(ct);
         var year = DateTime.UtcNow.Year;

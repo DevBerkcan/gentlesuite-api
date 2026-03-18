@@ -172,32 +172,31 @@ public class PdfService : IPdfService
                             cd.RelativeColumn(1.2f);  // Gesamt
                         });
 
-                        var hs = TextStyle.Default.FontSize(8.5f).Bold().FontColor("#FFF");
+                        var hs = TextStyle.Default.FontSize(8.5f).Bold().FontColor("#1a1a1a");
                         table.Header(hd =>
                         {
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Pos.").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Bezeichnung").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Menge").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Einheit").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Einzel €").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Gesamt €").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Pos.").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Bezeichnung").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Menge").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Einheit").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Einzel €").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Gesamt €").Style(hs);
                         });
 
                         for (int i = 0; i < lines.Count; i++)
                         {
                             var l = lines[i];
-                            var bg = i % 2 == 0 ? "#FFFFFF" : "#F5F5F5";
-                            table.Cell().Background(bg).Padding(6).Text($"{i + 1}").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).Column(cc =>
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Text($"{i + 1}").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Column(cc =>
                             {
                                 cc.Item().Text(l.Title).Bold().FontSize(9);
                                 if (!string.IsNullOrEmpty(l.Description))
                                     cc.Item().Text(l.Description).FontSize(8).FontColor("#666666");
                             });
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text(l.Quantity.ToString("N2")).FontSize(9);
-                            table.Cell().Background(bg).Padding(6).Text(l.Unit ?? "Stk.").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"{l.UnitPrice:N2} €").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"{l.NetTotal:N2} €").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text(l.Quantity.ToString("N2")).FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Text(l.Unit ?? "Stk.").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text($"{l.UnitPrice:N2} €").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text($"{l.NetTotal:N2} €").FontSize(9);
                         }
                     }
                     else
@@ -214,34 +213,33 @@ public class PdfService : IPdfService
                             cd.RelativeColumn(1.1f);  // Gesamt
                         });
 
-                        var hs = TextStyle.Default.FontSize(8.5f).Bold().FontColor("#FFF");
+                        var hs = TextStyle.Default.FontSize(8.5f).Bold().FontColor("#1a1a1a");
                         table.Header(hd =>
                         {
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Pos.").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Bezeichnung").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Menge").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).Text("Einheit").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Einzelpreis").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("MwSt").Style(hs);
-                            hd.Cell().Background("#2d2d2d").Padding(6).AlignRight().Text("Netto").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Pos.").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Bezeichnung").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Menge").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).Text("Einheit").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Einzelpreis").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("MwSt").Style(hs);
+                            hd.Cell().Background("#F2F2F2").Border(0.5f).BorderColor("#BBBBBB").Padding(6).AlignRight().Text("Gesamt €").Style(hs);
                         });
 
                         for (int i = 0; i < lines.Count; i++)
                         {
                             var l = lines[i];
-                            var bg = i % 2 == 0 ? "#FFFFFF" : "#F5F5F5";
-                            table.Cell().Background(bg).Padding(6).Text($"{i + 1}").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).Column(cc =>
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Text($"{i + 1}").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Column(cc =>
                             {
-                                cc.Item().Text(l.Title).FontSize(9);
+                                cc.Item().Text(l.Title).Bold().FontSize(9);
                                 if (!string.IsNullOrEmpty(l.Description))
                                     cc.Item().Text(l.Description).FontSize(8).FontColor("#666666");
                             });
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text(l.Quantity.ToString("N2")).FontSize(9);
-                            table.Cell().Background(bg).Padding(6).Text(l.Unit ?? "Stk.").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"{l.UnitPrice:N2} €").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"{l.VatPercent}%").FontSize(9);
-                            table.Cell().Background(bg).Padding(6).AlignRight().Text($"{l.NetTotal:N2} €").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text(l.Quantity.ToString("N2")).FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).Text(l.Unit ?? "Stk.").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text($"{l.UnitPrice:N2} €").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text($"{l.VatPercent}%").FontSize(9);
+                            table.Cell().Border(0.5f).BorderColor("#DDDDDD").Padding(6).AlignRight().Text($"{l.NetTotal:N2} €").FontSize(9);
                         }
                     }
                 });
@@ -249,18 +247,11 @@ public class PdfService : IPdfService
                 // === TOTALS ===
                 if (isSmallBusiness)
                 {
-                    // SmallBusiness: just "Gesamtbetrag"
-                    col.Item().PaddingTop(10).AlignRight().Row(r =>
+                    // SmallBusiness: Gesamtbetrag full-width mit Border (wie Referenz-Rechnung)
+                    col.Item().PaddingTop(4).Border(0.5f).BorderColor("#BBBBBB").Background("#F9F9F9").Padding(8).Row(tr =>
                     {
-                        r.RelativeItem();
-                        r.ConstantItem(260).Background("#F5F5F5").Border(1).BorderColor("#dddddd").Padding(10).Column(tc =>
-                        {
-                            tc.Item().Row(tr =>
-                            {
-                                tr.RelativeItem().Text("Gesamtbetrag*").Bold().FontSize(12);
-                                tr.RelativeItem().AlignRight().Text($"{inv.GrossTotal:N2} €").Bold().FontSize(12);
-                            });
-                        });
+                        tr.RelativeItem().Text("Gesamtbetrag*").Bold().FontSize(11);
+                        tr.ConstantItem(120).AlignRight().Text($"{inv.GrossTotal:N2} €").Bold().FontSize(11);
                     });
                 }
                 else
@@ -305,6 +296,9 @@ public class PdfService : IPdfService
                 // === PAYMENT NOTE ===
                 col.Item().PaddingTop(10).Text(inv.PaymentTerms ?? $"Bitte überweisen Sie den Betrag bis zum {inv.DueDate:dd.MM.yyyy} auf das unten angegebene Konto.").FontSize(9);
 
+                // === OUTRO TEXT ===
+                col.Item().PaddingTop(8).Text(inv.OutroText ?? "Vielen Dank für die gute Zusammenarbeit.").FontSize(9);
+
                 // === QR CODE + BANK INFO ===
                 if (!string.IsNullOrEmpty(co.Iban))
                 {
@@ -346,45 +340,53 @@ public class PdfService : IPdfService
                     });
                 }
 
-                // Outro text
-                if (!string.IsNullOrEmpty(inv.OutroText))
-                    col.Item().PaddingTop(12).Text(inv.OutroText).FontSize(9);
             });
 
             // === FOOTER ===
             p.Footer().Column(fc =>
             {
-                fc.Item().LineHorizontal(1).LineColor("#cccccc");
-                fc.Item().PaddingTop(6).Row(r =>
+                fc.Item().LineHorizontal(0.5f).LineColor("#BBBBBB");
+                fc.Item().PaddingTop(5).Row(r =>
                 {
+                    // Links: Firmen-Kontaktblock
                     r.RelativeItem().Column(c =>
                     {
-                        if (!string.IsNullOrEmpty(co.TaxId))
-                            c.Item().Text($"Steuernummer: {co.TaxId}").FontSize(7).FontColor("#666666");
-                        if (!string.IsNullOrEmpty(co.VatId))
-                            c.Item().Text($"USt-IdNr.: {co.VatId}").FontSize(7).FontColor("#666666");
-                        if (!string.IsNullOrEmpty(co.RegisterCourt))
-                            c.Item().Text($"{co.RegisterCourt} · {co.RegisterNumber}").FontSize(7).FontColor("#666666");
+                        c.Item().Text(co.CompanyName).FontSize(7).FontColor("#444444");
+                        c.Item().Text(co.Street).FontSize(7).FontColor("#444444");
+                        c.Item().Text($"{co.ZipCode} {co.City}").FontSize(7).FontColor("#444444");
+                        if (!string.IsNullOrEmpty(co.Phone))
+                            c.Item().Text($"Tel.: {co.Phone}").FontSize(7).FontColor("#444444");
+                        if (!string.IsNullOrEmpty(co.Email))
+                            c.Item().Text(co.Email).FontSize(7).FontColor("#444444");
+                        if (!string.IsNullOrEmpty(co.Website))
+                            c.Item().Text(co.Website).FontSize(7).FontColor("#444444");
                     });
+                    // Mitte: Steuernummer + Stadt + Ansprechpartner
                     r.RelativeItem().AlignCenter().Column(c =>
                     {
-                        c.Item().AlignCenter().Text($"{co.CompanyName}").FontSize(7).FontColor("#666666");
-                        c.Item().AlignCenter().Text($"{co.Street} · {co.ZipCode} {co.City}").FontSize(7).FontColor("#666666");
+                        if (!string.IsNullOrEmpty(co.TaxId))
+                            c.Item().AlignCenter().Text($"Steuernummer: {co.TaxId}").FontSize(7).FontColor("#444444");
+                        if (!string.IsNullOrEmpty(co.VatId))
+                            c.Item().AlignCenter().Text($"USt-IdNr.: {co.VatId}").FontSize(7).FontColor("#444444");
+                        c.Item().AlignCenter().Text(co.City).FontSize(7).FontColor("#444444");
                         if (!string.IsNullOrEmpty(co.ManagingDirector))
-                            c.Item().AlignCenter().Text($"GF: {co.ManagingDirector}").FontSize(7).FontColor("#666666");
+                            c.Item().AlignCenter().Text($"Herr {co.ManagingDirector}").FontSize(7).FontColor("#444444");
                     });
+                    // Rechts: Kontoinhaber + Bank + IBAN
                     r.RelativeItem().AlignRight().Column(c =>
                     {
+                        if (!string.IsNullOrEmpty(co.LegalName))
+                            c.Item().AlignRight().Text(co.LegalName).FontSize(7).FontColor("#444444");
+                        if (!string.IsNullOrEmpty(co.BankName))
+                            c.Item().AlignRight().Text(co.BankName).FontSize(7).FontColor("#444444");
                         if (!string.IsNullOrEmpty(co.Iban))
-                            c.Item().AlignRight().Text($"IBAN: {co.Iban}").FontSize(7).FontColor("#666666");
-                        if (!string.IsNullOrEmpty(co.Bic))
-                            c.Item().AlignRight().Text($"BIC: {co.Bic}").FontSize(7).FontColor("#666666");
+                            c.Item().AlignRight().Text($"IBAN: {co.Iban}").FontSize(7).FontColor("#444444");
                         c.Item().AlignRight().Text(t =>
                         {
-                            t.Span("Seite ").FontSize(7).FontColor("#666666");
-                            t.CurrentPageNumber().FontSize(7).FontColor("#666666");
-                            t.Span(" / ").FontSize(7).FontColor("#666666");
-                            t.TotalPages().FontSize(7).FontColor("#666666");
+                            t.Span("Seite ").FontSize(7).FontColor("#888888");
+                            t.CurrentPageNumber().FontSize(7).FontColor("#888888");
+                            t.Span(" / ").FontSize(7).FontColor("#888888");
+                            t.TotalPages().FontSize(7).FontColor("#888888");
                         });
                     });
                 });

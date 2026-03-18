@@ -97,7 +97,7 @@ public record UpdateProjectBoardTaskRequest(string Title, string? Description, s
 public record MoveProjectBoardTaskRequest(ProjectBoardTaskStatus Status, int SortOrder);
 
 // === Quote ===
-public record QuoteListDto(Guid Id, string QuoteNumber, string CustomerName, QuoteStatus Status, SignatureStatus SignatureStatus, decimal GrandTotal, int Version, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt);
+public record QuoteListDto(Guid Id, string QuoteNumber, string CustomerName, QuoteStatus Status, SignatureStatus SignatureStatus, decimal GrandTotal, int Version, DateTimeOffset CreatedAt, DateTimeOffset? ExpiresAt, bool HasInvoice = false);
 public class QuoteDetailDto
 {
     public Guid Id { get; set; }

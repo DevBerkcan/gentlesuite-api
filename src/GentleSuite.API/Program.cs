@@ -300,6 +300,25 @@ try
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Expenses' AND COLUMN_NAME='RecurringNextDate') ALTER TABLE "Expenses" ADD "RecurringNextDate" DATETIMEOFFSET NULL;""");
     await db.Database.ExecuteSqlRawAsync("""IF NOT EXISTS (SELECT 1 FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME='Expenses' AND COLUMN_NAME='RecurringParentId') ALTER TABLE "Expenses" ADD "RecurringParentId" UNIQUEIDENTIFIER NULL;""");
 
+    // Firmendaten aus Referenz-Rechnung immer aktuell halten
+    await db.Database.ExecuteSqlRawAsync("""
+        UPDATE "CompanySettings" SET
+            "CompanyName"       = 'Gentle Webdesign',
+            "LegalName"         = 'Berk-Can Atesoglu',
+            "Street"            = 'Oberbilker Allee 319',
+            "ZipCode"           = '40227',
+            "City"              = 'Düsseldorf',
+            "Country"           = 'Deutschland',
+            "Phone"             = '01754701892',
+            "Email"             = 'office@gentle-webdesign.com',
+            "Website"           = 'www.gentle-webdesign.com',
+            "TaxId"             = '133/5008/7238',
+            "BankName"          = 'Postbank Ndl der Deutsche Bank',
+            "Iban"              = 'DE16 1001 0010 0947 7181 03',
+            "ManagingDirector"  = 'Atesoglu'
+        WHERE 1=1
+    """);
+
     await SeedData.InitializeAsync(scope.ServiceProvider);
 }
 catch (Exception ex)
