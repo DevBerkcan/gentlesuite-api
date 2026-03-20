@@ -95,16 +95,39 @@ public class QuoteServiceImpl : IQuoteService
 
     public async Task<QuoteDetailDto> UpdateLinesAsync(Guid id, List<CreateQuoteLineRequest> lines, CancellationToken ct)
     {
-        var quote = await _db.Quotes.Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == id, ct) ?? throw new KeyNotFoundException();
+        var quote = await _db.Quotes
+            .AsNoTracking()
+            .FirstOrDefaultAsync(q => q.Id == id, ct) ?? throw new KeyNotFoundException();
+
         if (!quote.IsCurrentVersion) throw new InvalidOperationException("Nur aktuelle Angebotsversionen sind bearbeitbar.");
         if (quote.Status != QuoteStatus.Draft) throw new InvalidOperationException("Only draft quotes can be edited");
         if (lines == null || lines.Count == 0) throw new ArgumentException("Mindestens eine Angebotsposition ist erforderlich.");
         ValidateQuoteLines(lines);
-        _db.QuoteLines.RemoveRange(quote.Lines); quote.Lines.Clear();
-        foreach (var l in lines) quote.Lines.Add(new QuoteLine { ServiceCatalogItemId = l.ServiceCatalogItemId, Title = l.Title, Description = l.Description, Quantity = l.Quantity, UnitPrice = l.UnitPrice, DiscountPercent = l.DiscountPercent, LineType = l.LineType, VatPercent = l.VatPercent, SortOrder = l.SortOrder });
+
+        await _db.QuoteLines
+            .Where(l => l.QuoteId == id)
+            .ExecuteDeleteAsync(ct);
+
+        var newLines = lines.Select((l, i) => new QuoteLine
+        {
+            QuoteId = id,
+            ServiceCatalogItemId = l.ServiceCatalogItemId,
+            Title = l.Title,
+            Description = l.Description,
+            Quantity = l.Quantity,
+            UnitPrice = l.UnitPrice,
+            DiscountPercent = l.DiscountPercent,
+            LineType = l.LineType,
+            VatPercent = l.VatPercent,
+            SortOrder = i,
+        }).ToList();
+
+        _db.QuoteLines.AddRange(newLines);
         await _db.SaveChangesAsync(ct);
+
         return (await GetByIdAsync(quote.Id, ct))!;
     }
+
 
     public async Task SendAsync(Guid id, SendQuoteRequest req, CancellationToken ct)
     {

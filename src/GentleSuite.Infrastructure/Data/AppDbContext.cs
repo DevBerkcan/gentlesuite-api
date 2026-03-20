@@ -157,9 +157,20 @@ public class AppDbContext : IdentityDbContext<AppUser>, IUnitOfWork
     {
         foreach (var entry in ChangeTracker.Entries<BaseEntity>())
         {
-            if (entry.State == EntityState.Added) { entry.Entity.CreatedAt = DateTimeOffset.UtcNow; entry.Entity.CreatedBy = _currentUser?.UserId; }
-            if (entry.State == EntityState.Modified) { entry.Entity.UpdatedAt = DateTimeOffset.UtcNow; entry.Entity.UpdatedBy = _currentUser?.UserId; }
+            if (entry.State == EntityState.Added)
+            {
+                entry.Entity.CreatedAt = DateTimeOffset.UtcNow;
+                entry.Entity.CreatedBy = _currentUser?.UserId;
+            }
+            else if (entry.State == EntityState.Modified)
+            {
+                entry.Entity.UpdatedAt = DateTimeOffset.UtcNow;
+                entry.Entity.UpdatedBy = _currentUser?.UserId;
+                entry.Property(nameof(BaseEntity.CreatedAt)).IsModified = false;
+                entry.Property(nameof(BaseEntity.CreatedBy)).IsModified = false;
+            }
         }
         return await base.SaveChangesAsync(ct);
     }
+
 }
