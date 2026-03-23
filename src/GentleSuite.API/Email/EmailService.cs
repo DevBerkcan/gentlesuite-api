@@ -45,6 +45,7 @@ public class EmailServiceImpl : IEmailService
     private SecureSocketOptions GetSocketOptions()
     {
         if (_smtp.Port == 465) return SecureSocketOptions.SslOnConnect;
+        if (_smtp.Port == 587) return SecureSocketOptions.StartTls;
         if (_smtp.UseSsl) return SecureSocketOptions.StartTls;
         return SecureSocketOptions.None;
     }
