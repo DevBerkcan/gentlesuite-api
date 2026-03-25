@@ -340,8 +340,17 @@ public interface IUnitOfWork { Task<int> SaveChangesAsync(CancellationToken ct =
 public interface IEmailService
 {
     Task SendEmailAsync(string to, string subject, string body, string? cc = null, List<string>? attachments = null, CancellationToken ct = default);
-    Task SendTemplatedEmailAsync(string to, string templateKey, Dictionary<string, object> variables, Guid? customerId = null, List<string>? attachments = null, CancellationToken ct = default);
+    Task SendTemplatedEmailAsync(
+        string to,
+        string templateKey,
+        Dictionary<string, object> variables,
+        Guid? customerId = null,
+        IEnumerable<EmailAttachment>? attachments = null,
+        CancellationToken ct = default);
 }
+
+public record EmailAttachment(string FileName, byte[] Content, string ContentType);
+
 
 public interface IFileStorageService
 {

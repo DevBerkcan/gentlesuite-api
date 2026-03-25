@@ -212,7 +212,7 @@ public class QuoteServiceImpl : IQuoteService
     public async Task<byte[]> GeneratePdfAsync(Guid id, CancellationToken ct)
     {
         var quote = await _db.Quotes.Include(q => q.Customer).ThenInclude(c => c.Contacts).Include(q => q.Customer).ThenInclude(c => c.Locations).Include(q => q.Lines).FirstOrDefaultAsync(q => q.Id == id, ct) ?? throw new KeyNotFoundException();
-        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "GentleSuite" };
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "Gentle Group" };
         return await _pdf.GenerateQuotePdfAsync(quote, co, ct);
     }
 

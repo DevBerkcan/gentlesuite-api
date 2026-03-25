@@ -44,7 +44,8 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task<InvoiceDetailDto> CreateAsync(CreateInvoiceRequest req, CancellationToken ct)
     {
-        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct);
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct)
+            ?? new CompanySettings { CompanyName = "Gentle Group" };
         var year = DateTime.UtcNow.Year;
         var invoiceNumber = await _seq.NextNumberAsync("Invoice", year, "RE", 4, ct, includeYear: false);
         var inv = new Invoice
@@ -247,7 +248,7 @@ public class InvoiceServiceImpl : IInvoiceService
     public async Task<byte[]> GeneratePdfAsync(Guid id, CancellationToken ct)
     {
         var inv = await _db.Invoices.Include(i => i.Customer).ThenInclude(c => c.Contacts).Include(i => i.Customer).ThenInclude(c => c.Locations).Include(i => i.Lines).FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw new KeyNotFoundException();
-        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "GentleSuite" };
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "Gentle Group" };
         return await _pdf.GenerateInvoicePdfAsync(inv, co, ct);
     }
 
@@ -257,7 +258,7 @@ public class InvoiceServiceImpl : IInvoiceService
             .Include(i => i.Customer).ThenInclude(c => c.Locations)
             .Include(i => i.Lines)
             .FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw new KeyNotFoundException();
-        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "GentleSuite" };
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct) ?? new CompanySettings { CompanyName = "Gentle Group" };
 
         var desc = InvoiceDescriptor.CreateInvoice(inv.InvoiceNumber, inv.InvoiceDate.UtcDateTime, CurrencyCodes.EUR);
 
@@ -356,16 +357,46 @@ public class InvoiceServiceImpl : IInvoiceService
 
     public async Task SendAsync(Guid id, CancellationToken ct)
     {
-        var inv = await _db.Invoices.Include(i => i.Customer).ThenInclude(c => c.Contacts).Include(i => i.Lines).FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw new KeyNotFoundException();
-        var contact = inv.Customer.Contacts.FirstOrDefault(c => c.IsPrimary) ?? inv.Customer.Contacts.First();
+        var inv = await _db.Invoices
+            .Include(i => i.Customer).ThenInclude(c => c.Contacts)
+            .Include(i => i.Customer).ThenInclude(c => c.Locations)
+            .Include(i => i.Lines)
+            .FirstOrDefaultAsync(i => i.Id == id, ct) ?? throw new KeyNotFoundException();
+
+        var contact = inv.Customer.Contacts.FirstOrDefault(c => c.IsPrimary)
+            ?? inv.Customer.Contacts.First();
+
         if (inv.Status == InvoiceStatus.Final) inv.Status = InvoiceStatus.Sent;
         await _db.SaveChangesAsync(ct);
-        await _email.SendTemplatedEmailAsync(contact.Email, "invoice-sent", new Dictionary<string, object>
-        {
-            ["CustomerName"] = inv.Customer.CompanyName, ["ContactName"] = contact.FirstName,
-            ["InvoiceNumber"] = inv.InvoiceNumber, ["Amount"] = inv.GrossTotal.ToString("N2"),
-            ["DueDate"] = inv.DueDate.ToString("dd.MM.yyyy")
-        }, inv.CustomerId, ct: ct);
+
+        var co = await _db.CompanySettings.FirstOrDefaultAsync(ct)
+            ?? new CompanySettings { CompanyName = "Gentle Group" };
+
+        var pdfBytes = await _pdf.GenerateInvoicePdfAsync(inv, co, ct);
+
+        await _email.SendTemplatedEmailAsync(
+            contact.Email,
+            "invoice-sent",
+            new Dictionary<string, object>
+            {
+                ["CustomerName"] = inv.Customer.CompanyName,
+                ["ContactName"] = contact.FirstName,
+                ["InvoiceNumber"] = inv.InvoiceNumber,
+                ["InvoiceDate"] = inv.InvoiceDate.ToString("dd.MM.yyyy"),
+                ["NetTotal"] = inv.NetTotal.ToString("N2"),
+                ["VatAmount"] = inv.VatAmount.ToString("N2"),
+                ["GrossTotal"] = inv.GrossTotal.ToString("N2"),
+                ["DueDate"] = inv.DueDate.ToString("dd.MM.yyyy"),
+            },
+            inv.CustomerId,
+            attachments: new[]
+            {
+            new EmailAttachment($"Rechnung_{inv.InvoiceNumber}.pdf", pdfBytes, "application/pdf")
+            },
+            ct: ct);
+
+        await _activity.LogAsync(inv.CustomerId, "Invoice", inv.Id, "Sent",
+            $"Rechnung {inv.InvoiceNumber} per E-Mail gesendet", ct: ct);
     }
 
     public async Task<InvoiceDetailDto> CreateFromTimeEntriesAsync(CreateInvoiceFromTimeEntriesRequest req, CancellationToken ct)

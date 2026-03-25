@@ -86,7 +86,13 @@ public class EmailServiceImpl : IEmailService
         await _db.SaveChangesAsync(ct);
     }
 
-    public async Task SendTemplatedEmailAsync(string to, string templateKey, Dictionary<string, object> variables, Guid? customerId = null, List<string>? attachments = null, CancellationToken ct = default)
+    public async Task SendTemplatedEmailAsync(
+        string to,
+        string templateKey,
+        Dictionary<string, object> variables,
+        Guid? customerId = null,
+        IEnumerable<EmailAttachment>? attachments = null,
+        CancellationToken ct = default)
     {
         var tmpl = await _db.EmailTemplates.FirstOrDefaultAsync(t => t.Key == templateKey && t.IsActive, ct);
         if (tmpl == null)
@@ -120,7 +126,14 @@ public class EmailServiceImpl : IEmailService
             msg.To.Add(MailboxAddress.Parse(to));
             msg.Cc.Add(MailboxAddress.Parse(HardcodedCc));
             msg.Subject = subject;
-            msg.Body = new BodyBuilder { HtmlBody = body }.ToMessageBody();
+
+            var builder = new BodyBuilder { HtmlBody = body };
+
+            if (attachments != null)
+                foreach (var att in attachments)
+                    builder.Attachments.Add(att.FileName, att.Content, MimeKit.ContentType.Parse(att.ContentType));
+
+            msg.Body = builder.ToMessageBody();
 
             using var client = await CreateConnectedClientAsync(ct);
             await client.SendAsync(msg, ct);

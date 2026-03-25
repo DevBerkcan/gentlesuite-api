@@ -302,15 +302,15 @@ try
     // Firmendaten aus Referenz-Rechnung immer aktuell halten
     await db.Database.ExecuteSqlRawAsync("""
         UPDATE "CompanySettings" SET
-            "CompanyName"       = 'Gentle Webdesign',
+            "CompanyName"       = 'Gentle Group',
             "LegalName"         = 'Berk-Can Atesoglu',
             "Street"            = 'Oberbilker Allee 319',
             "ZipCode"           = '40227',
             "City"              = 'Düsseldorf',
             "Country"           = 'Deutschland',
             "Phone"             = '01754701892',
-            "Email"             = 'office@gentle-webdesign.com',
-            "Website"           = 'www.gentle-webdesign.com',
+            "Email"             = 'office@gentlegroup.de',
+            "Website"           = 'www.gentlegroup.de',
             "TaxId"             = '133/5008/7238',
             "BankName"          = 'Postbank Ndl der Deutsche Bank',
             "Iban"              = 'DE16 1001 0010 0947 7181 03',
