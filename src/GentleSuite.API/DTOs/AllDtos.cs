@@ -157,8 +157,6 @@ public class InvoiceDetailDto
     public TaxMode TaxMode { get; set; }
     public DateTimeOffset InvoiceDate { get; set; }
     public DateTimeOffset DueDate { get; set; }
-    public DateTimeOffset ServiceDateFrom { get; set; }
-    public DateTimeOffset ServiceDateTo { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
     public decimal NetTotal { get; set; }
     public decimal VatAmount { get; set; }
@@ -180,10 +178,10 @@ public class InvoiceDetailDto
 public record InvoiceLineDto(Guid Id, string Title, string? Description, string? Unit, decimal Quantity, decimal UnitPrice, int VatPercent, int SortOrder, decimal NetTotal, decimal VatAmount, decimal GrossTotal);
 public record InvoicePaymentDto(Guid Id, decimal Amount, DateTimeOffset PaymentDate, string? PaymentMethod, string? Reference);
 public record InvoiceVatSummaryDto(int VatPercent, decimal NetAmount, decimal VatAmount, decimal GrossAmount);
-public record CreateInvoiceRequest(Guid CustomerId, Guid? QuoteId, string? Subject, string? IntroText, string? OutroText, string? Notes, TaxMode TaxMode = TaxMode.Standard, DateTimeOffset? ServiceDateFrom = null, DateTimeOffset? ServiceDateTo = null, int PaymentTermDays = 14, List<CreateInvoiceLineRequest>? Lines = null);
+public record CreateInvoiceRequest(Guid CustomerId, Guid? QuoteId, string? Subject, string? IntroText, string? OutroText, string? Notes, TaxMode TaxMode = TaxMode.Standard, int PaymentTermDays = 14, List<CreateInvoiceLineRequest>? Lines = null);
 public record CreateInvoiceLineRequest(string Title, string? Description, string? Unit, decimal Quantity, decimal UnitPrice, int VatPercent = 19, int SortOrder = 0);
 public record UpdateInvoiceLineRequest(string Title, string? Description, string? Unit, decimal Quantity, decimal UnitPrice, int VatPercent = 19, int SortOrder = 0);
-public record UpdateInvoiceRequest(string? Subject, string? IntroText, string? OutroText, string? Notes, TaxMode TaxMode, DateTimeOffset InvoiceDate, DateTimeOffset DueDate, DateTimeOffset? ServiceDateFrom, DateTimeOffset? ServiceDateTo, List<UpdateInvoiceLineRequest> Lines);
+public record UpdateInvoiceRequest(string? Subject, string? IntroText, string? OutroText, string? Notes, TaxMode TaxMode, DateTimeOffset InvoiceDate, DateTimeOffset DueDate, List<UpdateInvoiceLineRequest> Lines);
 public record FinalizeInvoiceRequest(bool SendEmail = true);
 public record RecordPaymentRequest(decimal Amount, DateTimeOffset? PaymentDate, string? PaymentMethod, string? Reference, string? Note);
 public record CreateCancellationRequest(string? Reason);
@@ -323,7 +321,7 @@ public record ResetPasswordConfirmRequest(string Email, string Token, string New
 public record CreateServiceCategoryRequest(string Name, string? Description, int SortOrder = 0);
 public record UpdateServiceCategoryRequest(string Name, string? Description, int SortOrder);
 public record CreateServiceItemRequest(Guid CategoryId, string Name, string? Description, string? ShortCode, decimal? DefaultPrice, QuoteLineType DefaultLineType = QuoteLineType.OneTime, int SortOrder = 0);
-public record UpdateServiceItemRequest(string Name, string? Description, string? ShortCode, decimal? DefaultPrice, QuoteLineType DefaultLineType, int SortOrder);
+public record UpdateServiceItemRequest(Guid CategoryId, string Name, string? Description, string? ShortCode, decimal? DefaultPrice, QuoteLineType DefaultLineType, int SortOrder);
 
 // === Quote Template CRUD ===
 public record CreateQuoteTemplateRequest(string Name, string? Description, List<CreateQuoteTemplateLineRequest> Lines);

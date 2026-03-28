@@ -80,8 +80,6 @@ public class ReminderJobs
                     Status = InvoiceStatus.Final,
                     InvoiceDate = DateTimeOffset.UtcNow,
                     DueDate = DateTimeOffset.UtcNow.AddDays(14),
-                    ServiceDateFrom = periodStart,
-                    ServiceDateTo = periodEnd,
                     RetentionUntil = DateTimeOffset.UtcNow.AddYears(10),
                     IsFinalized = true,
                     FinalizedAt = DateTimeOffset.UtcNow

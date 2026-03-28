@@ -295,8 +295,6 @@ public class QuoteServiceImpl : IQuoteService
             Status = InvoiceStatus.Draft,
             InvoiceDate = DateTimeOffset.UtcNow,
             DueDate = DateTimeOffset.UtcNow.AddDays(14),
-            ServiceDateFrom = DateTimeOffset.UtcNow,
-            ServiceDateTo = DateTimeOffset.UtcNow,
             RetentionUntil = DateTimeOffset.UtcNow.AddYears(10)
         };
         foreach (var ql in quote.Lines)

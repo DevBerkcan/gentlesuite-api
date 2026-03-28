@@ -31,8 +31,6 @@ public class Invoice : GobdEntity
     public DateTimeOffset InvoiceDate { get; set; } = DateTimeOffset.UtcNow;
     public DateTimeOffset DueDate { get; set; }
     public DateTimeOffset? PaidAt { get; set; }
-    public DateTimeOffset ServiceDateFrom { get; set; }  // Leistungszeitraum
-    public DateTimeOffset ServiceDateTo { get; set; }
 
     // === Tax (§14 UStG) ===
     public string? SellerTaxId { get; set; }      // Our Steuernummer

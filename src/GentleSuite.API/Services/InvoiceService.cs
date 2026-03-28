@@ -60,8 +60,6 @@ public class InvoiceServiceImpl : IInvoiceService
             TaxMode = req.TaxMode,
             InvoiceDate = DateTimeOffset.UtcNow,
             DueDate = DateTimeOffset.UtcNow.AddDays(req.PaymentTermDays),
-            ServiceDateFrom = req.ServiceDateFrom ?? DateTimeOffset.UtcNow,
-            ServiceDateTo = req.ServiceDateTo ?? DateTimeOffset.UtcNow,
             SellerTaxId = co?.TaxId,
             SellerVatId = co?.VatId,
             Status = InvoiceStatus.Draft,
@@ -90,8 +88,6 @@ public class InvoiceServiceImpl : IInvoiceService
         inv.TaxMode = req.TaxMode;
         inv.InvoiceDate = req.InvoiceDate;
         inv.DueDate = req.DueDate;
-        inv.ServiceDateFrom = req.ServiceDateFrom ?? inv.ServiceDateFrom;
-        inv.ServiceDateTo = req.ServiceDateTo ?? inv.ServiceDateTo;
 
         var existingLines = inv.Lines.OrderBy(l => l.SortOrder).ToList();
         var targetLines = req.Lines ?? new List<UpdateInvoiceLineRequest>();
@@ -147,8 +143,6 @@ public class InvoiceServiceImpl : IInvoiceService
     {
         if (req.Lines == null || req.Lines.Count == 0) throw new ArgumentException("Mindestens eine Position ist erforderlich.");
         if (req.DueDate < req.InvoiceDate) throw new ArgumentException("Faelligkeitsdatum darf nicht vor dem Rechnungsdatum liegen.");
-        if (req.ServiceDateFrom.HasValue && req.ServiceDateTo.HasValue && req.ServiceDateTo < req.ServiceDateFrom)
-            throw new ArgumentException("Leistungsende darf nicht vor Leistungsbeginn liegen.");
 
         for (var i = 0; i < req.Lines.Count; i++)
         {
@@ -231,8 +225,6 @@ public class InvoiceServiceImpl : IInvoiceService
             TaxMode = orig.TaxMode,
             InvoiceDate = DateTimeOffset.UtcNow,
             DueDate = DateTimeOffset.UtcNow.AddDays(14),
-            ServiceDateFrom = orig.ServiceDateFrom,
-            ServiceDateTo = orig.ServiceDateTo,
             Status = InvoiceStatus.Final,
             IsFinalized = true,
             FinalizedAt = DateTimeOffset.UtcNow,
@@ -284,9 +276,6 @@ public class InvoiceServiceImpl : IInvoiceService
             street: loc?.Street ?? "",
             country: CountryCodes.DE,
             id: inv.Customer.CustomerNumber);
-
-        // Delivery date
-        desc.ActualDeliveryDate = inv.ServiceDateFrom.UtcDateTime;
 
         // Payment terms
 
@@ -416,8 +405,6 @@ public class InvoiceServiceImpl : IInvoiceService
             TaxMode = TaxMode.Standard,
             InvoiceDate = DateTimeOffset.UtcNow,
             DueDate = DateTimeOffset.UtcNow.AddDays(req.PaymentTermDays),
-            ServiceDateFrom = entries.Min(e => e.Date),
-            ServiceDateTo = entries.Max(e => e.Date),
             SellerTaxId = co?.TaxId,
             SellerVatId = co?.VatId,
             Status = InvoiceStatus.Draft,
